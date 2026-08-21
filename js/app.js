@@ -83,7 +83,7 @@ function navigate() {
     case "solve": renderSolve(); break;
   }
 
-  if (route.name !== "solve") document.title = "PrepForge";
+  if (route.name !== "solve") document.title = "Hackera";
   window.scrollTo(0, 0);
 }
 
@@ -520,7 +520,7 @@ function renderLesson() {
   const first = PRACTICE_QUESTIONS.find((q) => q.patternId === p.id);
   $("lesson-start").onclick = () => first && go(`#/solve/${encodeURIComponent("learn:" + first.id)}`);
   $("lesson-quiz").onclick = () => quizMe(p);
-  document.title = `${p.name} - PrepForge`;
+  document.title = `${p.name} - Hackera`;
 }
 
 function lessonHtml(p) {
@@ -959,7 +959,7 @@ function renderSolve() {
 
   renderTabs(problem);
   applyUiTheme(state.prefs.uiTheme || "codesignal");
-  document.title = `${problem.title} - PrepForge`;
+  document.title = `${problem.title} - Hackera`;
 }
 
 function renderTabs(problem) {

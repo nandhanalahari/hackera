@@ -34,7 +34,7 @@ function renderDesign() {
     </section>`;
   }).join("");
 
-  document.title = "System design - PrepForge";
+  document.title = "System design - Hackera";
 }
 
 function renderDesignTopic() {
@@ -56,7 +56,7 @@ function renderDesignTopic() {
     )
     .join("");
 
-  document.title = `${t.name} - PrepForge`;
+  document.title = `${t.name} - Hackera`;
 }
 
 function renderDesignDrill() {
@@ -110,5 +110,5 @@ function renderDesignDrill() {
   $("design-drill-next").classList.toggle("hidden", !answered || !next);
   if (next) $("design-drill-next").href = `#/design/${encodeURIComponent(t.id)}/${encodeURIComponent(next.id)}`;
 
-  document.title = `${sc.title} - PrepForge`;
+  document.title = `${sc.title} - Hackera`;
 }

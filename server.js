@@ -168,7 +168,7 @@ async function handleRun(req, res) {
     }));
   }
 
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "prepforge-run-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "hackera-run-"));
   try {
     fs.writeFileSync(path.join(dir, "Solution.java"), buildSolution(code));
     fs.writeFileSync(path.join(dir, "Main.java"), buildMain(problem.meta, tests));
@@ -370,7 +370,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   const runnable = PROBLEMS.filter((p) => p.runnable && supports(p.meta)).length;
-  console.log(`PrepForge running at http://localhost:${PORT}`);
+  console.log(`Hackera running at http://localhost:${PORT}`);
   console.log(`  Java : ${JAVA}`);
   console.log(`  Run  : ${runnable}/${PROBLEMS.length} problems supported`);
   console.log(`  Jobs : /api/jobs (resume ${loadResumeText().trim() ? "loaded" : "missing"})`);

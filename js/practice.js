@@ -50,7 +50,7 @@ function renderPractice() {
 
   if (!filtered.length) {
     $("practice-body").innerHTML = `<p class="empty-state">Nothing matches these filters.</p>`;
-    document.title = `${meta.nav} - PrepForge`;
+    document.title = `${meta.nav} - Hackera`;
     return;
   }
 
@@ -108,7 +108,7 @@ function renderPractice() {
     });
   });
 
-  document.title = `${meta.nav} - PrepForge`;
+  document.title = `${meta.nav} - Hackera`;
 }
 
 function initPracticeFilters() {
