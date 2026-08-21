@@ -303,6 +303,26 @@ async function handleJobs(req, res) {
     );
   }
 
+  if (sort === "both") {
+    const best = [...jobs].sort((a, b) => b.score - a.score || (a.ageDays ?? 999) - (b.ageDays ?? 999)).slice(0, 50);
+    const latest = [...jobs].sort((a, b) => (a.ageDays ?? 999) - (b.ageDays ?? 999) || b.score - a.score).slice(0, 50);
+    sendJson(res, 200, {
+      ok: true,
+      fetchedAt: bundle.fetchedAt,
+      resumeLoaded: bundle.resumeLoaded,
+      resumeName: bundle.resumeName,
+      resources: bundle.resources,
+      sources: bundle.sources,
+      errors: bundle.errors,
+      sort: "both",
+      total: jobs.length,
+      best,
+      latest,
+      jobs: best
+    });
+    return;
+  }
+
   if (sort === "new") jobs.sort((a, b) => (a.ageDays ?? 999) - (b.ageDays ?? 999) || b.score - a.score);
   else if (sort === "company") jobs.sort((a, b) => a.company.localeCompare(b.company) || b.score - a.score);
   else jobs.sort((a, b) => b.score - a.score || (a.ageDays ?? 999) - (b.ageDays ?? 999));

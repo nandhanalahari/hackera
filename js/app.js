@@ -654,12 +654,39 @@ function paintJobs(data) {
     ? `${data.total} roles · ranked for ${data.resumeName || "your resume"} · ${when}`
     : `${data.total} roles · add data/resume.txt to enable ranking · ${when}`;
 
-  $("jobs-banner").innerHTML = data.resumeLoaded
-    ? `Sorted by fit with <strong>${escapeHtml(data.resumeName || "your resume")}</strong>. Internships are boosted because your grad date is ~2028. TikTok/ByteDance and skills from your resume (Java, Python, ML, security, React…) raise the score.`
+  const sort = $("jobs-sort").value;
+  const bannerBase = data.resumeLoaded
+    ? `Ranked against <strong>${escapeHtml(data.resumeName || "your resume")}</strong>. Internships are boosted for ~2028 grad. Skills like Java, Python, ML, and security raise the score.`
     : `Resume file missing — showing unranked lists. Save your resume text to <code>data/resume.txt</code> and hit Refresh.`;
+
+  if (sort === "both") {
+    $("jobs-banner").innerHTML =
+      bannerBase + ` Showing the top matches for your resume and the newest postings side by side.`;
+  } else if (sort === "fit") {
+    $("jobs-banner").innerHTML = bannerBase + ` Sorted by best resume fit.`;
+  } else if (sort === "new") {
+    $("jobs-banner").innerHTML = bannerBase + ` Sorted by newest postings first${data.resumeLoaded ? ", with fit score as tiebreaker" : ""}.`;
+  } else {
+    $("jobs-banner").innerHTML = bannerBase;
+  }
 
   if (data.errors && data.errors.length) {
     $("jobs-banner").innerHTML += ` <span class="muted">(${data.errors.length} source error${data.errors.length > 1 ? "s" : ""})</span>`;
+  }
+
+  if (sort === "both" && data.best && data.latest) {
+    if (!data.best.length && !data.latest.length) {
+      $("jobs-body").innerHTML = `<p class="empty-state">No roles match these filters.</p>`;
+      return;
+    }
+    $("jobs-body").innerHTML =
+      (data.best.length
+        ? `<section class="jobs-section"><header class="group-head"><h3>Best match for your resume</h3><span class="muted">${data.best.length} roles</span></header>${jobsTableHtml(data.best, data)}</section>`
+        : "") +
+      (data.latest.length
+        ? `<section class="jobs-section"><header class="group-head"><h3>Latest postings</h3><span class="muted">${data.latest.length} roles</span></header>${jobsTableHtml(data.latest, data)}</section>`
+        : "");
+    return;
   }
 
   if (!data.jobs || !data.jobs.length) {
@@ -667,11 +694,15 @@ function paintJobs(data) {
     return;
   }
 
-  $("jobs-body").innerHTML = `<table class="ptable jobs-table">
+  $("jobs-body").innerHTML = jobsTableHtml(data.jobs, data);
+}
+
+function jobsTableHtml(jobs, data) {
+  return `<table class="ptable jobs-table">
     <thead><tr>
       <th>Fit</th><th>Company</th><th>Role</th><th>Location</th><th>Age</th><th>Source</th><th></th>
     </tr></thead>
-    <tbody>${data.jobs
+    <tbody>${jobs
       .map((j) => {
         const fit = data.resumeLoaded
           ? `<span class="fit s${fitBand(j.score)}" title="${escapeHtml((j.reasons || []).join(" · "))}">${Math.round(j.score)}</span>`

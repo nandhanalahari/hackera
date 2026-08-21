@@ -706,6 +706,8 @@ ul.resources .muted { font-size: 12.5px; display: block; margin-top: 2px; }
   line-height: 1.55;
 }
 .jobs-banner code { font-family: var(--mono); font-size: 12px; background: var(--panel-3); padding: 1px 5px; border-radius: 4px; }
+.jobs-section { margin-bottom: 28px; }
+.jobs-section:last-child { margin-bottom: 0; }
 .jobs-table .c-fit { width: 52px; text-align: center; }
 .jobs-table .c-co { width: 140px; }
 .jobs-table .c-loc { width: 160px; font-size: 12.5px; }
