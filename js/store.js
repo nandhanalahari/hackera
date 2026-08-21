@@ -80,6 +80,7 @@ const state = {
     uiTheme: "codesignal",
     companySort: "freq",
     filters: { q: "", difficulty: "all", status: "all", company: "all" },
+    practiceCollapsed: {},
     expandedPattern: null
   }),
   learning: load(KEYS.learning, {}),

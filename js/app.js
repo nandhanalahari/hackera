@@ -4,7 +4,7 @@
 /* router                                                              */
 /* ------------------------------------------------------------------ */
 
-const VIEWS = ["home", "list", "companies", "learn", "lesson", "bank", "jobs", "progress", "solve", "design", "design-topic", "design-drill"];
+const VIEWS = ["home", "list", "companies", "learn", "lesson", "bank", "jobs", "progress", "solve", "design", "design-topic", "design-drill", "practice"];
 
 function parseRoute() {
   const raw = (location.hash || "#/").replace(/^#\/?/, "");
@@ -12,12 +12,12 @@ function parseRoute() {
 
   if (!parts.length) return { name: "home" };
   switch (parts[0]) {
+    case "practice":
+      return { name: "practice", listId: practiceListId(parts[1] || "neetcode150") };
     case "neetcode150":
-      return { name: "list", section: "neetcode150" };
     case "blind75":
-      return { name: "list", section: "blind75" };
     case "all":
-      return { name: "list", section: "all" };
+      return { name: "practice", listId: practiceListId(parts[0]) };
     case "companies":
       return { name: "companies" };
     case "company":
@@ -55,10 +55,10 @@ function navigate() {
     a.classList.toggle(
       "active",
       (route.name === "home" && k === "home") ||
+        (route.name === "practice" && k === "practice") ||
         (route.name === "list" && route.section === k) ||
         (route.name === "companies" && k === "companies") ||
         (route.name === "list" && route.section === "company" && k === "companies") ||
-        (route.name === "list" && route.section === "all" && k === "all") ||
         ((route.name === "learn" || route.name === "lesson") && k === "learn") ||
         ((route.name === "design" || route.name === "design-topic" || route.name === "design-drill") && k === "design") ||
         (route.name === "bank" && k === "bank") ||
@@ -70,6 +70,7 @@ function navigate() {
   switch (route.name) {
     case "home": renderHome(); break;
     case "list": renderList(); break;
+    case "practice": renderPractice(); break;
     case "companies": renderCompanies(); break;
     case "learn": renderLearn(); break;
     case "lesson": renderLesson(); break;
@@ -186,7 +187,7 @@ function renderHome() {
       accent: "violet"
     },
     {
-      href: "#/all",
+      href: "#/practice/all",
       kicker: "Full bank",
       title: "All questions",
       body: `${allStats.total} LeetCode problems with company tags where available.`,
@@ -195,7 +196,7 @@ function renderHome() {
       accent: "blue"
     },
     {
-      href: "#/neetcode150",
+      href: "#/practice/neetcode150",
       kicker: "Curated",
       title: "NeetCode 150",
       body: "The standard 150, grouped by topic in the intended order.",
@@ -204,7 +205,7 @@ function renderHome() {
       accent: "blue"
     },
     {
-      href: "#/blind75",
+      href: "#/practice/blind75",
       kicker: "Curated",
       title: "Blind 75",
       body: "The classic shortlist when you are short on time.",
@@ -351,7 +352,7 @@ function renderList() {
 
   const keys = filtered.map((p) => p.slug);
   const label = sectionTitle(section, company);
-  const back = section === "company" ? "#/companies" : section === "all" ? "#/" : `#/${section}`;
+  const back = section === "company" ? "#/companies" : "#/practice";
 
   if (!grouped) {
     $("list-body").innerHTML = tableHtml(filtered, section, company);
@@ -857,10 +858,10 @@ function naturalQueue(problem) {
 
   const p = BY_SLUG.get(problem.key);
   if (p && p.neetcode150) {
-    return { keys: listProblems("neetcode150").map((x) => x.slug), label: "NeetCode 150", back: "#/neetcode150" };
+    return { keys: listProblems("neetcode150").map((x) => x.slug), label: "NeetCode 150", back: "#/practice/neetcode150" };
   }
   if (p && p.blind75) {
-    return { keys: listProblems("blind75").map((x) => x.slug), label: "Blind 75", back: "#/blind75" };
+    return { keys: listProblems("blind75").map((x) => x.slug), label: "Blind 75", back: "#/practice/blind75" };
   }
 
   for (const name of COMPANIES_BY_SIZE) {
@@ -875,10 +876,10 @@ function naturalQueue(problem) {
   }
 
   if (p) {
-    return { keys: listProblems("all").map((x) => x.slug), label: "All questions", back: "#/all" };
+    return { keys: listProblems("all").map((x) => x.slug), label: "All questions", back: "#/practice/all" };
   }
 
-  return { keys: [problem.key], label: "Problems", back: "#/neetcode150" };
+  return { keys: [problem.key], label: "Problems", back: "#/practice/neetcode150" };
 }
 
 let activeQueue = { keys: [], label: "", back: "#/" };
@@ -1485,6 +1486,7 @@ function initFilters() {
     Object.assign(f, patch);
     persist.prefs();
     if (state.route.name === "list") renderList();
+    if (state.route.name === "practice") renderPractice();
   };
 
   let searchTimer = null;
@@ -1512,6 +1514,7 @@ function init() {
   initEditor();
   initSplits();
   initFilters();
+  initPracticeFilters();
 
   $("q-prev").addEventListener("click", () => moveProblem(-1));
   $("q-next").addEventListener("click", () => moveProblem(1));

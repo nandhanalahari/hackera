@@ -25,7 +25,7 @@
     <a href="#/" data-nav="home">Home</a>
     <a href="#/learn" data-nav="learn">Code</a>
     <a href="#/design" data-nav="design">Design</a>
-    <a href="#/all" data-nav="all">Practice</a>
+    <a href="#/practice" data-nav="practice">Practice</a>
     <a href="#/companies" data-nav="companies">Companies</a>
     <a href="#/jobs" data-nav="jobs">Jobs</a>
     <a href="#/progress" data-nav="progress">Progress</a>
@@ -110,7 +110,64 @@
       </div>
     </section>
 
-    <!-- ---------------------------------------------------------- list -->
+    <!-- ------------------------------------------------------- practice -->
+    <section id="view-practice" class="view hidden practice-view">
+      <div class="practice-shell">
+        <aside class="practice-sidebar">
+          <p class="practice-sidebar-label">Lists</p>
+          <nav id="practice-nav" class="practice-nav"></nav>
+        </aside>
+        <div class="practice-main">
+          <header class="practice-header">
+            <div class="practice-header-copy">
+              <h1 id="practice-title">NeetCode 150.</h1>
+              <p id="practice-desc" class="muted"></p>
+            </div>
+            <div class="practice-stats">
+              <div class="practice-ring-wrap">
+                <svg class="practice-ring" viewBox="0 0 100 100">
+                  <circle class="practice-ring-bg" cx="50" cy="50" r="46"></circle>
+                  <circle id="practice-ring-fg" class="practice-ring-fg" cx="50" cy="50" r="46"></circle>
+                </svg>
+                <div class="practice-ring-label">
+                  <strong id="practice-ring-num">0</strong>
+                  <span id="practice-ring-total">/ 0</span>
+                </div>
+              </div>
+              <div class="practice-diff-grid">
+                <div class="pr-diff-stat easy"><span class="lbl">Easy</span><strong id="pr-easy">0 / 0</strong></div>
+                <div class="pr-diff-stat medium"><span class="lbl">Medium</span><strong id="pr-medium">0 / 0</strong></div>
+                <div class="pr-diff-stat hard"><span class="lbl">Hard</span><strong id="pr-hard">0 / 0</strong></div>
+              </div>
+              <p id="pr-solved-label" class="pr-solved-label muted"></p>
+            </div>
+          </header>
+
+          <div class="practice-toolbar">
+            <input id="pf-search" type="search" placeholder="Search problems" spellcheck="false">
+            <select id="pf-difficulty">
+              <option value="all">All difficulty</option>
+              <option value="Easy">Easy</option>
+              <option value="Medium">Medium</option>
+              <option value="Hard">Hard</option>
+            </select>
+            <select id="pf-status">
+              <option value="all">All status</option>
+              <option value="todo">Todo</option>
+              <option value="attempted">Attempted</option>
+              <option value="solved">Solved</option>
+            </select>
+            <select id="pf-company">
+              <option value="all">Any company</option>
+            </select>
+            <button id="pf-clear" class="btn-ghost small">Clear</button>
+          </div>
+
+          <div id="practice-body" class="practice-body"></div>
+        </div>
+      </div>
+    </section>
+
     <section id="view-list" class="view hidden">
       <div class="list-head">
         <div>
@@ -411,6 +468,7 @@
 <script src="js/themes.js"></script>
 <script src="js/lesson-visuals.js"></script>
 <script src="js/design.js"></script>
+<script src="js/practice.js"></script>
 <script src="js/coach.js"></script>
 <script src="js/app.js"></script>
 </body>

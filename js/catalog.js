@@ -252,6 +252,46 @@ function companyListSubtitle(section, company, count) {
   return `${count} reported questions, most frequently asked first.`;
 }
 
+const PRACTICE_LISTS = {
+  blind75: {
+    id: "blind75",
+    nav: "Blind 75",
+    title: "Blind 75.",
+    description: "The Blind 75 is a popular list of algorithm practice problems."
+  },
+  neetcode150: {
+    id: "neetcode150",
+    nav: "NeetCode 150",
+    title: "NeetCode 150.",
+    description: "The standard curated list, grouped by topic in the intended order."
+  },
+  all: {
+    id: "all",
+    nav: "All questions",
+    title: "All questions.",
+    description: "Full LeetCode bank with company tags where reported."
+  }
+};
+
+function practiceListId(raw) {
+  return PRACTICE_LISTS[raw] ? raw : "neetcode150";
+}
+
+function orderedCategories(section, groupMap) {
+  const keys = [...groupMap.keys()];
+  if (section === "neetcode150") {
+    return NEETCODE_ORDER.filter((c) => groupMap.has(c)).concat(
+      keys.filter((c) => !NEETCODE_ORDER.includes(c)).sort()
+    );
+  }
+  if (section === "blind75") {
+    return BLIND_ORDER.filter((c) => groupMap.has(c)).concat(
+      keys.filter((c) => !BLIND_ORDER.includes(c)).sort()
+    );
+  }
+  return keys.sort((a, b) => groupMap.get(b).length - groupMap.get(a).length || a.localeCompare(b));
+}
+
 /* ------------------------------------------------------------------ */
 /* stats                                                               */
 /* ------------------------------------------------------------------ */

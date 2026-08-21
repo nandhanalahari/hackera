@@ -48,6 +48,7 @@ const bundle =
     "js/themes.js",
     "js/lesson-visuals.js",
     "js/design.js",
+    "js/practice.js",
     "js/coach.js",
     "js/app.js"
   ]
@@ -107,9 +108,10 @@ check("design scenarios", window.SD_TOPICS.reduce((n, t) => n + t.scenarios.leng
 console.log("\nroutes");
 const routes = [
   ["#/", "view-home", "home-cards"],
-  ["#/all", "view-list", "list-body"],
-  ["#/neetcode150", "view-list", "list-body"],
-  ["#/blind75", "view-list", "list-body"],
+  ["#/practice", "view-practice", "practice-body"],
+  ["#/practice/neetcode150", "view-practice", "practice-body"],
+  ["#/practice/blind75", "view-practice", "practice-body"],
+  ["#/blind75", "view-practice", "practice-body"],
   ["#/companies", "view-companies", "company-grid"],
   ["#/company/tiktok", "view-list", "list-body"],
   ["#/learn", "view-learn", "learn-body"],
@@ -157,8 +159,8 @@ $("q-solved").checked = true;
 $("q-solved").dispatchEvent(new window.Event("change"));
 check("marking solved persists", window.isSolved("two-sum"));
 check("solved shows on the list", (() => {
-  visit("#/neetcode150");
-  return $("list-body").innerHTML.includes("tick done");
+  visit("#/practice/neetcode150");
+  return $("practice-body").innerHTML.includes("tick done");
 })());
 
 visit("#/solve/two-sum");
@@ -166,18 +168,18 @@ $("q-solved").checked = false;
 $("q-solved").dispatchEvent(new window.Event("change"));
 check("unmarking solved persists", !window.isSolved("two-sum"));
 
-visit("#/neetcode150");
-$("f-difficulty").value = "Hard";
-$("f-difficulty").dispatchEvent(new window.Event("change"));
-const hardOnly = !$("list-body").innerHTML.includes("badge easy");
+visit("#/practice/neetcode150");
+$("pf-difficulty").value = "Hard";
+$("pf-difficulty").dispatchEvent(new window.Event("change"));
+const hardOnly = !$("practice-body").innerHTML.includes("pr-diff easy");
 check("difficulty filter narrows the list", hardOnly);
-$("f-clear").click();
-check("clear restores the list", $("list-body").innerHTML.includes("badge easy"));
+$("pf-clear").click();
+check("clear restores the list", $("practice-body").innerHTML.includes("pr-diff easy"));
 
-$("f-search").value = "island";
+$("pf-search").value = "island";
 window.state.prefs.filters.q = "island";
-visit("#/neetcode150");
-check("search matches", $("list-body").innerHTML.toLowerCase().includes("island"));
+visit("#/practice/neetcode150");
+check("search matches", $("practice-body").innerHTML.toLowerCase().includes("island"));
 window.state.prefs.filters.q = "";
 
 console.log("\ncompany sort");
