@@ -45,7 +45,7 @@ const SOURCES = [
 const RESOURCES = [
   {
     title: "LeetCode company-wise questions",
-    blurb: "Reported interview questions by company, with frequency. Powers the Companies track in Grind.",
+    blurb: "Reported interview questions by company, with frequency. Powers the Companies track in PrepForge.",
     url: "https://github.com/snehasishroy/leetcode-companywise-interview-questions/tree/master",
     kind: "prep"
   },
@@ -220,7 +220,7 @@ const PARSERS = { speedy: parseSpeedy, pitt: parsePitt, jobright: parseJobright 
 
 async function fetchText(url) {
   const res = await fetch(url, {
-    headers: { "User-Agent": "GrindJobsTracker/1.0", Accept: "text/plain" }
+    headers: { "User-Agent": "PrepForgeJobsTracker/1.0", Accept: "text/plain" }
   });
   if (!res.ok) throw new Error(`${url} -> HTTP ${res.status}`);
   return res.text();

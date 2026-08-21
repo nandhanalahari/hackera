@@ -71,7 +71,7 @@ function navigate() {
     case "solve": renderSolve(); break;
   }
 
-  if (route.name !== "solve") document.title = "Grind - Java Interview Prep";
+  if (route.name !== "solve") document.title = "PrepForge - Java Interview Prep";
   window.scrollTo(0, 0);
 }
 
@@ -499,7 +499,7 @@ function renderLesson() {
   const first = PRACTICE_QUESTIONS.find((q) => q.patternId === p.id);
   $("lesson-start").onclick = () => first && go(`#/solve/${encodeURIComponent("learn:" + first.id)}`);
   $("lesson-quiz").onclick = () => quizMe(p);
-  document.title = `${p.name} - Grind`;
+  document.title = `${p.name} - PrepForge`;
 }
 
 function lessonHtml(p) {
@@ -907,7 +907,7 @@ function renderSolve() {
 
   renderTabs(problem);
   applyUiTheme(state.prefs.uiTheme || "codesignal");
-  document.title = `${problem.title} - Grind`;
+  document.title = `${problem.title} - PrepForge`;
 }
 
 function renderTabs(problem) {

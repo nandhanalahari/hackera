@@ -1,4 +1,4 @@
-# Grind
+# PrepForge
 
 A local interview-prep app for Java coding assessments. Static HTML/JS, no build
 step. Problems come from LeetCode's public API, company tags from real reported
