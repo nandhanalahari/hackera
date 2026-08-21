@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PrepForge - Java Interview Prep</title>
+<title>PrepForge</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="preconnect" href="https://cdnjs.cloudflare.com">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/eclipse.min.css">
@@ -22,30 +22,31 @@
   </a>
 
   <nav class="nav-links">
-    <a href="#/all" data-nav="all">All</a>
-    <a href="#/learn" data-nav="learn">Learn</a>
-    <a href="#/neetcode150" data-nav="neetcode150">NeetCode 150</a>
-    <a href="#/blind75" data-nav="blind75">Blind 75</a>
+    <a href="#/" data-nav="home">Home</a>
+    <a href="#/learn" data-nav="learn">Code</a>
+    <a href="#/design" data-nav="design">Design</a>
+    <a href="#/all" data-nav="all">Practice</a>
     <a href="#/companies" data-nav="companies">Companies</a>
-    <a href="#/bank" data-nav="bank">My Bank</a>
     <a href="#/jobs" data-nav="jobs">Jobs</a>
     <a href="#/progress" data-nav="progress">Progress</a>
   </nav>
 
   <div class="nav-right">
-    <label class="ui-theme-wrap" title="Switch IDE to match the platform you'll test on">
-      <span class="ui-theme-label">IDE</span>
-      <select id="ui-theme" aria-label="Assessment platform UI"></select>
-    </label>
-    <div class="timer" title="Session timer">
-      <input id="timer-input" value="70:00" size="5" spellcheck="false" aria-label="Timer duration">
-      <span id="timer-display">70:00</span>
-      <button id="timer-start" class="icon" title="Start">&#9654;</button>
-      <button id="timer-pause" class="icon" title="Pause">&#10073;&#10073;</button>
-      <button id="timer-reset" class="icon" title="Reset">&#8635;</button>
+    <div id="nav-ide-tools" class="nav-ide-tools">
+      <label class="ui-theme-wrap" title="Switch IDE to match the platform you'll test on">
+        <span class="ui-theme-label">IDE</span>
+        <select id="ui-theme" aria-label="Assessment platform UI"></select>
+      </label>
+      <div class="timer" title="Session timer">
+        <input id="timer-input" value="70:00" size="5" spellcheck="false" aria-label="Timer duration">
+        <span id="timer-display">70:00</span>
+        <button id="timer-start" class="icon" title="Start">&#9654;</button>
+        <button id="timer-pause" class="icon" title="Pause">&#10073;&#10073;</button>
+        <button id="timer-reset" class="icon" title="Reset">&#8635;</button>
+      </div>
+      <input id="api-key" type="password" placeholder="Gemini key" size="12" spellcheck="false" aria-label="Gemini API key">
     </div>
     <span id="sync-badge" class="sync" title="Supabase sync status">&#9679; local</span>
-    <input id="api-key" type="password" placeholder="Gemini key" size="12" spellcheck="false" aria-label="Gemini API key">
     <button id="chat-toggle" class="btn-ghost chat-toggle" title="Toggle the coach (Cmd/Ctrl + J)">
       <span class="dot" id="chat-dot"></span>Coach
     </button>
@@ -56,37 +57,45 @@
   <main id="page">
 
     <!-- ---------------------------------------------------------- home -->
-    <section id="view-home" class="view">
-      <div class="hero">
-        <div class="hero-copy">
-          <h1>Get interview ready.</h1>
-          <p>Learn the pattern, drill it, then face the real thing. Every solution you
-             submit gets graded, stored, and turned into a study plan.</p>
+    <section id="view-home" class="view home-view">
+      <div class="home-hero">
+        <div class="home-hero-copy">
+          <p class="home-kicker">Internship pipeline</p>
+          <h1>Forge the offer<span class="cursor-blink">_</span></h1>
+          <p class="home-lede">Learn patterns, train system design judgment, then drill company questions — all in one workspace.</p>
           <div class="hero-actions">
             <a id="home-continue" class="btn-primary" href="#/learn">Start learning</a>
-            <a class="btn-ghost" href="#/neetcode150">Browse NeetCode 150</a>
+            <a class="btn-ghost" href="#/design">System design</a>
+          </div>
+          <div class="home-pipeline">
+            <a class="pipe-stage" href="#/learn"><span class="pipe-num">1</span> Coding patterns</a>
+            <span class="pipe-arrow">→</span>
+            <a class="pipe-stage accent" href="#/design"><span class="pipe-num">2</span> Design judgment</a>
+            <span class="pipe-arrow">→</span>
+            <a class="pipe-stage" href="#/jobs"><span class="pipe-num">3</span> Land the role</a>
           </div>
         </div>
-        <div class="hero-stats">
-          <div class="ring-wrap">
-            <svg class="ring" viewBox="0 0 120 120">
-              <circle class="ring-bg" cx="60" cy="60" r="52"></circle>
-              <circle id="ring-fg" class="ring-fg" cx="60" cy="60" r="52"></circle>
-            </svg>
-            <div class="ring-label">
-              <strong id="home-solved">0</strong>
-              <span id="home-total">of 0 solved</span>
-            </div>
+        <div class="home-hero-stats">
+          <div class="stat-panel">
+            <span class="stat-label">Coding solved</span>
+            <strong id="home-solved">0</strong>
+            <span id="home-total" class="muted">of 0</span>
+            <ul class="mini-stats">
+              <li><span class="dot easy"></span><span id="home-easy">0 / 0</span> Easy</li>
+              <li><span class="dot medium"></span><span id="home-medium">0 / 0</span> Medium</li>
+              <li><span class="dot hard"></span><span id="home-hard">0 / 0</span> Hard</li>
+            </ul>
           </div>
-          <ul class="mini-stats">
-            <li><span class="dot easy"></span><span id="home-easy">0 / 0</span> Easy</li>
-            <li><span class="dot medium"></span><span id="home-medium">0 / 0</span> Medium</li>
-            <li><span class="dot hard"></span><span id="home-hard">0 / 0</span> Hard</li>
-          </ul>
+          <div class="stat-panel">
+            <span class="stat-label">Design decisions</span>
+            <strong id="home-design-done">0</strong>
+            <span id="home-design-total" class="muted">of 0 practiced</span>
+            <div class="bar wide"><i id="home-design-bar"></i></div>
+          </div>
         </div>
       </div>
 
-      <h2 class="section-heading">Tracks</h2>
+      <h2 class="section-heading">Your tracks</h2>
       <div id="home-cards" class="cards"></div>
 
       <div class="home-split">
@@ -232,6 +241,44 @@
       <div id="jobs-body" class="list-body"></div>
     </section>
 
+    <!-- ------------------------------------------------------ design -->
+    <section id="view-design" class="view hidden">
+      <div class="list-head">
+        <div>
+          <h1>System design judgment</h1>
+          <p class="muted">Read the constraints, make the call, learn the axis — three minutes per decision.</p>
+        </div>
+        <div class="list-progress">
+          <div class="bar wide"><i id="design-bar"></i></div>
+          <span id="design-count" class="muted"></span>
+        </div>
+      </div>
+      <div id="design-body" class="sd-topics"></div>
+    </section>
+
+    <section id="view-design-topic" class="view hidden">
+      <div class="list-head">
+        <div>
+          <a class="back" href="#/design">&#8592; All topics</a>
+          <h1 id="design-topic-title"></h1>
+          <p id="design-topic-sub" class="muted"></p>
+        </div>
+      </div>
+      <div id="design-topic-scenarios" class="cards"></div>
+    </section>
+
+    <section id="view-design-drill" class="view hidden">
+      <div class="sd-drill-head">
+        <a id="design-drill-back" class="back" href="#/design">&#8592; Back</a>
+        <span id="design-drill-kicker" class="kicker"></span>
+        <h1 id="design-drill-title"></h1>
+      </div>
+      <div id="design-drill-body" class="sd-drill"></div>
+      <div class="sd-drill-foot">
+        <a id="design-drill-next" class="btn-primary hidden" href="#">Next decision &#8594;</a>
+      </div>
+    </section>
+
     <!-- ------------------------------------------------------ progress -->
     <section id="view-progress" class="view hidden">
       <div class="list-head">
@@ -358,10 +405,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+<script src="data/system-design.js"></script>
 <script src="js/store.js"></script>
 <script src="js/catalog.js"></script>
 <script src="js/themes.js"></script>
 <script src="js/lesson-visuals.js"></script>
+<script src="js/design.js"></script>
 <script src="js/coach.js"></script>
 <script src="js/app.js"></script>
 </body>

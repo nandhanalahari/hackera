@@ -42,10 +42,12 @@ const bundle =
     "config.js",
     "data.js",
     "data/problems.js",
+    "data/system-design.js",
     "js/store.js",
     "js/catalog.js",
     "js/themes.js",
     "js/lesson-visuals.js",
+    "js/design.js",
     "js/coach.js",
     "js/app.js"
   ]
@@ -54,7 +56,7 @@ const bundle =
   /* Top-level const is script-scoped, not a window property, in browsers too.
      The app relies on that shared scope; the test needs handles. */
   `\n;Object.assign(window, {
-      PROBLEMS, PATTERNS, PRACTICE_QUESTIONS, state, isSolved, isAttempted,
+      PROBLEMS, PATTERNS, PRACTICE_QUESTIONS, SD_TOPICS, state, isSolved, isAttempted,
       setChatOpen, getProblem, COMPANY_INDEX, statsFor, overallStats,
       submitForReview, setEditorValue, db, progressFor
     });`;
@@ -99,6 +101,8 @@ check("every problem has a difficulty", window.PROBLEMS.every((p) => ["Easy", "M
 check("company tags present", window.PROBLEMS.every((p) => p.companies.length > 0));
 check("tiktok has 300+ questions", window.PROBLEMS.filter((p) => p.companies.some((c) => c.name === "tiktok")).length >= 300);
 check("40 curated questions", window.PRACTICE_QUESTIONS.length === 40);
+check("system design topics", window.SD_TOPICS.length >= 5);
+check("design scenarios", window.SD_TOPICS.reduce((n, t) => n + t.scenarios.length, 0) >= 15);
 
 console.log("\nroutes");
 const routes = [
@@ -109,6 +113,8 @@ const routes = [
   ["#/companies", "view-companies", "company-grid"],
   ["#/company/tiktok", "view-list", "list-body"],
   ["#/learn", "view-learn", "learn-body"],
+  ["#/design", "view-design", "design-body"],
+  ["#/design/requirements", "view-design-topic", "design-topic-scenarios"],
   ["#/bank", "view-bank", "bank-body"],
   ["#/progress", "view-progress", "progress-summary"]
 ];

@@ -93,6 +93,11 @@ function applyUiTheme(themeId) {
   document.documentElement.dataset.ui = theme.id;
   document.body.dataset.ui = theme.id;
 
+  if (!document.body.classList.contains("solving")) {
+    document.body.removeAttribute("data-ui");
+    document.documentElement.removeAttribute("data-ui");
+  }
+
   const sel = $("ui-theme");
   if (sel && sel.value !== theme.id) sel.value = theme.id;
 
@@ -132,6 +137,15 @@ function applyUiTheme(themeId) {
   });
 }
 
+function syncUiThemeForRoute(isSolve) {
+  if (isSolve) {
+    applyUiTheme(state.prefs.uiTheme || "codesignal");
+  } else {
+    document.body.removeAttribute("data-ui");
+    document.documentElement.removeAttribute("data-ui");
+  }
+}
+
 function initUiTheme() {
   const sel = $("ui-theme");
   if (sel) {
@@ -141,7 +155,6 @@ function initUiTheme() {
     sel.value = state.prefs.uiTheme || "codesignal";
     sel.addEventListener("change", () => applyUiTheme(sel.value));
   }
-  applyUiTheme(state.prefs.uiTheme || "codesignal");
 }
 
 function themeTabLabels(problem, descTab) {

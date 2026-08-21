@@ -17,6 +17,7 @@ const KEYS = {
   layout: "oa.layout",
   prefs: "oa.prefs",
   learning: "oa.learning",
+  designProgress: "oa.designProgress",
   user: "oa.userKey"
 };
 
@@ -82,6 +83,7 @@ const state = {
     expandedPattern: null
   }),
   learning: load(KEYS.learning, {}),
+  designProgress: load(KEYS.designProgress, {}),
   route: { name: "home" },
   busy: false,
   synced: false
@@ -96,7 +98,8 @@ const persist = {
   timer: () => save(KEYS.timer, state.timer),
   layout: () => save(KEYS.layout, state.layout),
   prefs: () => save(KEYS.prefs, state.prefs),
-  learning: () => save(KEYS.learning, state.learning)
+  learning: () => save(KEYS.learning, state.learning),
+  designProgress: () => save(KEYS.designProgress, state.designProgress)
 };
 
 /* ------------------------------------------------------------------ */

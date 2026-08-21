@@ -4,7 +4,7 @@
 /* router                                                              */
 /* ------------------------------------------------------------------ */
 
-const VIEWS = ["home", "list", "companies", "learn", "lesson", "bank", "jobs", "progress", "solve"];
+const VIEWS = ["home", "list", "companies", "learn", "lesson", "bank", "jobs", "progress", "solve", "design", "design-topic", "design-drill"];
 
 function parseRoute() {
   const raw = (location.hash || "#/").replace(/^#\/?/, "");
@@ -24,6 +24,10 @@ function parseRoute() {
       return { name: "list", section: "company", company: parts[1] || "tiktok" };
     case "learn":
       return parts[1] ? { name: "lesson", patternId: parts[1] } : { name: "learn" };
+    case "design":
+      if (parts[2]) return { name: "design-drill", topicId: parts[1], scenarioId: parts[2] };
+      if (parts[1]) return { name: "design-topic", topicId: parts[1] };
+      return { name: "design" };
     case "solve":
       return { name: "solve", key: parts.slice(1).join("/") };
     case "bank":
@@ -42,17 +46,21 @@ function navigate() {
   state.route = route;
 
   VIEWS.forEach((v) => $("view-" + v).classList.toggle("hidden", v !== route.name));
-  document.body.classList.toggle("solving", route.name === "solve");
+  const solving = route.name === "solve";
+  document.body.classList.toggle("solving", solving);
+  if (typeof syncUiThemeForRoute === "function") syncUiThemeForRoute(solving);
 
   document.querySelectorAll("[data-nav]").forEach((a) => {
     const k = a.dataset.nav;
     a.classList.toggle(
       "active",
-      (route.name === "list" && route.section === k) ||
+      (route.name === "home" && k === "home") ||
+        (route.name === "list" && route.section === k) ||
         (route.name === "companies" && k === "companies") ||
         (route.name === "list" && route.section === "company" && k === "companies") ||
         (route.name === "list" && route.section === "all" && k === "all") ||
         ((route.name === "learn" || route.name === "lesson") && k === "learn") ||
+        ((route.name === "design" || route.name === "design-topic" || route.name === "design-drill") && k === "design") ||
         (route.name === "bank" && k === "bank") ||
         (route.name === "jobs" && k === "jobs") ||
         (route.name === "progress" && k === "progress")
@@ -68,10 +76,13 @@ function navigate() {
     case "bank": renderBank(); break;
     case "jobs": renderJobs(); break;
     case "progress": renderProgress(); break;
+    case "design": renderDesign(); break;
+    case "design-topic": renderDesignTopic(); break;
+    case "design-drill": renderDesignDrill(); break;
     case "solve": renderSolve(); break;
   }
 
-  if (route.name !== "solve") document.title = "PrepForge - Java Interview Prep";
+  if (route.name !== "solve") document.title = "PrepForge";
   window.scrollTo(0, 0);
 }
 
@@ -136,18 +147,18 @@ function renderSyncBadge() {
 function renderHome() {
   const all = overallStats();
   const lcStats = statsFor(PROBLEMS);
+  const design = sdStats();
 
   $("home-solved").textContent = all.solved;
   $("home-total").textContent = `of ${all.total} solved`;
 
-  const circumference = 2 * Math.PI * 52;
-  const ring = $("ring-fg");
-  ring.style.strokeDasharray = String(circumference);
-  ring.style.strokeDashoffset = String(circumference * (1 - all.solved / (all.total || 1)));
-
   $("home-easy").textContent = `${lcStats.easy[0]} / ${lcStats.easy[1]}`;
   $("home-medium").textContent = `${lcStats.medium[0]} / ${lcStats.medium[1]}`;
   $("home-hard").textContent = `${lcStats.hard[0]} / ${lcStats.hard[1]}`;
+
+  $("home-design-done").textContent = design.done;
+  $("home-design-total").textContent = `of ${design.total} practiced`;
+  $("home-design-bar").style.width = pct(design.done, design.total) + "%";
 
   const learn = learnStats();
   const allStats = statsFor(listProblems("all"));
@@ -157,9 +168,18 @@ function renderHome() {
 
   const cards = [
     {
+      href: "#/design",
+      kicker: "Stage 2",
+      title: "System design judgment",
+      body: "Constraints on screen → pick the call → learn the axis. Built for later-round internships.",
+      done: design.done,
+      total: design.total,
+      accent: "green"
+    },
+    {
       href: "#/learn",
-      kicker: "Guided",
-      title: "Learning path",
+      kicker: "Stage 1",
+      title: "Coding patterns",
       body: "Ten patterns, each with a lesson, two warm-ups and two interview questions.",
       done: learn.solved,
       total: learn.total,
@@ -219,7 +239,7 @@ function renderHome() {
     },
     {
       href: "#/jobs",
-      kicker: "Apply",
+      kicker: "Stage 3",
       title: "Jobs tracker",
       body: "Live internships ranked against your resume, plus company-question lists.",
       accent: "amber"
