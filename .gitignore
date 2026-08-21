@@ -1,0 +1,6 @@
+config.js
+.DS_Store
+node_modules/
+tools/.cache.json
+data/resume.txt
+data/resume.pdf

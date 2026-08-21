@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grind - Java Interview Prep</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/eclipse.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header id="nav">
+  <a class="brand" href="#/">
+    <span class="logo">G</span><span class="brand-text">Grind</span>
+  </a>
+
+  <nav class="nav-links">
+    <a href="#/all" data-nav="all">All</a>
+    <a href="#/learn" data-nav="learn">Learn</a>
+    <a href="#/neetcode150" data-nav="neetcode150">NeetCode 150</a>
+    <a href="#/blind75" data-nav="blind75">Blind 75</a>
+    <a href="#/companies" data-nav="companies">Companies</a>
+    <a href="#/bank" data-nav="bank">My Bank</a>
+    <a href="#/jobs" data-nav="jobs">Jobs</a>
+    <a href="#/progress" data-nav="progress">Progress</a>
+  </nav>
+
+  <div class="nav-right">
+    <label class="ui-theme-wrap" title="Switch IDE to match the platform you'll test on">
+      <span class="ui-theme-label">IDE</span>
+      <select id="ui-theme" aria-label="Assessment platform UI"></select>
+    </label>
+    <div class="timer" title="Session timer">
+      <input id="timer-input" value="70:00" size="5" spellcheck="false" aria-label="Timer duration">
+      <span id="timer-display">70:00</span>
+      <button id="timer-start" class="icon" title="Start">&#9654;</button>
+      <button id="timer-pause" class="icon" title="Pause">&#10073;&#10073;</button>
+      <button id="timer-reset" class="icon" title="Reset">&#8635;</button>
+    </div>
+    <span id="sync-badge" class="sync" title="Supabase sync status">&#9679; local</span>
+    <input id="api-key" type="password" placeholder="Gemini key" size="12" spellcheck="false" aria-label="Gemini API key">
+    <button id="chat-toggle" class="btn-ghost chat-toggle" title="Toggle the coach (Cmd/Ctrl + J)">
+      <span class="dot" id="chat-dot"></span>Coach
+    </button>
+  </div>
+</header>
+
+<div id="shell">
+  <main id="page">
+
+    <!-- ---------------------------------------------------------- home -->
+    <section id="view-home" class="view">
+      <div class="hero">
+        <div class="hero-copy">
+          <h1>Get interview ready.</h1>
+          <p>Learn the pattern, drill it, then face the real thing. Every solution you
+             submit gets graded, stored, and turned into a study plan.</p>
+          <div class="hero-actions">
+            <a id="home-continue" class="btn-primary" href="#/learn">Start learning</a>
+            <a class="btn-ghost" href="#/neetcode150">Browse NeetCode 150</a>
+          </div>
+        </div>
+        <div class="hero-stats">
+          <div class="ring-wrap">
+            <svg class="ring" viewBox="0 0 120 120">
+              <circle class="ring-bg" cx="60" cy="60" r="52"></circle>
+              <circle id="ring-fg" class="ring-fg" cx="60" cy="60" r="52"></circle>
+            </svg>
+            <div class="ring-label">
+              <strong id="home-solved">0</strong>
+              <span id="home-total">of 0 solved</span>
+            </div>
+          </div>
+          <ul class="mini-stats">
+            <li><span class="dot easy"></span><span id="home-easy">0 / 0</span> Easy</li>
+            <li><span class="dot medium"></span><span id="home-medium">0 / 0</span> Medium</li>
+            <li><span class="dot hard"></span><span id="home-hard">0 / 0</span> Hard</li>
+          </ul>
+        </div>
+      </div>
+
+      <h2 class="section-heading">Tracks</h2>
+      <div id="home-cards" class="cards"></div>
+
+      <div class="home-split">
+        <div>
+          <h2 class="section-heading">Pick up where you left off</h2>
+          <ul id="home-recent" class="recent"></ul>
+        </div>
+        <div>
+          <h2 class="section-heading">What to work on</h2>
+          <ul id="home-focus" class="focus"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------- list -->
+    <section id="view-list" class="view hidden">
+      <div class="list-head">
+        <div>
+          <h1 id="list-title">NeetCode 150</h1>
+          <p id="list-sub" class="muted"></p>
+        </div>
+        <div class="list-progress">
+          <div class="bar wide"><i id="list-bar"></i></div>
+          <span id="list-count" class="muted"></span>
+        </div>
+      </div>
+
+      <div class="filters">
+        <input id="f-search" type="search" placeholder="Search problems" spellcheck="false">
+        <select id="f-difficulty">
+          <option value="all">All difficulty</option>
+          <option value="Easy">Easy</option>
+          <option value="Medium">Medium</option>
+          <option value="Hard">Hard</option>
+        </select>
+        <select id="f-status">
+          <option value="all">All status</option>
+          <option value="todo">Todo</option>
+          <option value="attempted">Attempted</option>
+          <option value="solved">Solved</option>
+        </select>
+        <select id="f-company">
+          <option value="all">Any company</option>
+        </select>
+        <select id="f-company-sort" class="hidden" aria-label="Company list sort">
+          <option value="freq">Most frequent</option>
+          <option value="recent">Most recent first</option>
+          <option value="topic">By topic</option>
+        </select>
+        <label id="f-group-wrap" class="check"><input id="f-group" type="checkbox" checked> Group by topic</label>
+        <button id="f-clear" class="btn-ghost small">Clear</button>
+      </div>
+
+      <div id="list-body" class="list-body"></div>
+    </section>
+
+    <!-- ----------------------------------------------------- companies -->
+    <section id="view-companies" class="view hidden">
+      <div class="list-head">
+        <div>
+          <h1>Companies</h1>
+          <p class="muted">Problem sets built from real reported interview questions,
+             ordered by how often each one comes up.</p>
+        </div>
+      </div>
+      <div id="company-grid" class="cards"></div>
+    </section>
+
+    <!-- --------------------------------------------------------- learn -->
+    <section id="view-learn" class="view hidden">
+      <div class="list-head">
+        <div>
+          <h1>Learning path</h1>
+          <p class="muted">Read the pattern, drill two warm-ups, then take on the interview questions.</p>
+        </div>
+        <div class="list-progress">
+          <div class="bar wide"><i id="learn-bar"></i></div>
+          <span id="learn-count" class="muted"></span>
+        </div>
+      </div>
+      <div id="learn-body" class="learn-body"></div>
+    </section>
+
+    <!-- --------------------------------------------------------- lesson -->
+    <section id="view-lesson" class="view hidden">
+      <div class="lesson-head">
+        <a class="back" href="#/learn">&#8592; Learning path</a>
+        <h1 id="lesson-title"></h1>
+        <div id="lesson-actions" class="lesson-actions">
+          <button id="lesson-quiz" class="btn-ghost">Quiz me</button>
+          <button id="lesson-start" class="btn-primary">Start practising</button>
+        </div>
+      </div>
+      <div id="lesson-body" class="prose"></div>
+    </section>
+
+    <!-- ---------------------------------------------------------- bank -->
+    <section id="view-bank" class="view hidden">
+      <div class="list-head">
+        <div>
+          <h1>My question bank</h1>
+          <p class="muted">Paste questions you actually saw in an assessment so you can
+             re-solve them and get them reviewed.</p>
+        </div>
+        <button id="bank-new" class="btn-primary">Add question</button>
+      </div>
+      <div id="bank-body" class="list-body"></div>
+    </section>
+
+    <!-- ---------------------------------------------------------- jobs -->
+    <section id="view-jobs" class="view hidden">
+      <div class="list-head">
+        <div>
+          <h1>Jobs & resources</h1>
+          <p class="muted">Live internship / new-grad trackers ranked against your resume, plus the lists this app is built on.</p>
+        </div>
+        <div class="list-progress" style="flex-direction:column;align-items:flex-end;gap:8px">
+          <span id="jobs-meta" class="muted"></span>
+          <button id="jobs-refresh" class="btn-ghost small">Refresh lists</button>
+        </div>
+      </div>
+
+      <h2 class="section-heading">Links</h2>
+      <div id="jobs-resources" class="cards"></div>
+
+      <h2 class="section-heading">Live tracker</h2>
+      <div class="filters">
+        <input id="jobs-search" type="search" placeholder="Search company or role" spellcheck="false">
+        <select id="jobs-kind">
+          <option value="all">All types</option>
+          <option value="intern" selected>Internships</option>
+          <option value="newgrad">New grad</option>
+          <option value="pm">PM</option>
+        </select>
+        <select id="jobs-sort">
+          <option value="fit" selected>Best fit for you</option>
+          <option value="new">Newest first</option>
+          <option value="company">Company A–Z</option>
+        </select>
+      </div>
+      <div id="jobs-banner" class="jobs-banner muted"></div>
+      <div id="jobs-body" class="list-body"></div>
+    </section>
+
+    <!-- ------------------------------------------------------ progress -->
+    <section id="view-progress" class="view hidden">
+      <div class="list-head">
+        <div>
+          <h1>Progress</h1>
+          <p class="muted">Every graded submission, newest first.</p>
+        </div>
+      </div>
+      <div id="progress-summary" class="cards"></div>
+      <h2 class="section-heading">Weak spots</h2>
+      <div id="progress-weak" class="weak"></div>
+      <h2 class="section-heading">Review history</h2>
+      <div id="progress-history" class="history"></div>
+    </section>
+
+    <!-- --------------------------------------------------------- solve -->
+    <section id="view-solve" class="view solve hidden">
+      <div class="solve-bar">
+        <a id="solve-back" class="back" href="#/">&#8592; Back</a>
+        <span id="solve-crumb" class="crumb"></span>
+        <div class="spacer"></div>
+        <button id="q-prev" class="btn-ghost small">&#8592; Prev</button>
+        <span id="q-position" class="muted"></span>
+        <button id="q-next" class="btn-ghost small">Next &#8594;</button>
+      </div>
+
+      <div id="content" class="split">
+        <div id="pane-desc" class="pane">
+          <div class="desc-layout">
+            <div class="ptabs">
+              <button class="ptab active" data-dtab="description" title="Description">Desc</button>
+              <button class="ptab" data-dtab="hint" title="Hints">Hints</button>
+              <button class="ptab" data-dtab="review" title="Review">Review</button>
+              <button class="ptab" data-dtab="lesson" title="Lesson">Lesson</button>
+            </div>
+            <div id="desc-body" class="pane-body">
+              <div id="tab-description">
+                <h2 id="q-title"></h2>
+                <div id="q-meta" class="meta"></div>
+                <div id="q-companies" class="companies"></div>
+                <div id="q-prompt" class="prose lc"></div>
+              </div>
+              <div id="tab-hint" class="hidden"></div>
+              <div id="tab-review" class="hidden"></div>
+              <div id="tab-lesson" class="hidden prose"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="gutter-2" class="gutter"></div>
+
+        <div id="pane-editor" class="pane">
+          <div class="editor-bar">
+            <span class="lang">Java</span>
+            <div class="spacer"></div>
+            <span id="q-saved" class="saved"></span>
+            <button id="code-reset" class="btn-ghost small">Reset</button>
+            <label class="check"><input id="q-solved" type="checkbox"> Solved</label>
+          </div>
+          <div class="editor-wrap"><textarea id="q-code" spellcheck="false"></textarea></div>
+          <div id="run-panel" class="run-panel hidden">
+            <div class="run-head">
+              <strong id="run-summary">Test Results</strong>
+              <div class="spacer"></div>
+              <button id="run-close" class="icon" title="Close results">&#10005;</button>
+            </div>
+            <div id="run-body" class="run-body"></div>
+          </div>
+          <div class="editor-foot">
+            <button id="q-hint-btn" class="btn-ghost small">Get a hint</button>
+            <div class="spacer"></div>
+            <button id="q-run" class="btn-primary small" title="Run against example test cases (Ctrl/Cmd + Enter)">Run tests</button>
+            <button id="q-submit" class="btn-submit">Submit</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <div id="gutter-3" class="gutter hidden"></div>
+
+  <aside id="chat" class="hidden">
+    <div class="chat-head">
+      <strong>Coach</strong>
+      <div class="spacer"></div>
+      <button id="chat-clear" class="btn-ghost small">Clear</button>
+      <button id="chat-close" class="icon" title="Close">&#10005;</button>
+    </div>
+    <div id="chat-log" class="chat-log"></div>
+    <form id="chat-form" class="chat-form">
+      <textarea id="chat-input" rows="3" placeholder="Ask for a nudge, not the answer..."></textarea>
+      <button id="chat-send" class="btn-primary" type="submit">Send</button>
+    </form>
+  </aside>
+</div>
+
+<!-- bank editor -->
+<div id="bank-modal" class="modal hidden">
+  <div class="modal-card">
+    <h2 id="bank-modal-title">Add question</h2>
+    <label>Title<input id="bank-title" placeholder="e.g. Sort matrix by rings"></label>
+    <label>Difficulty
+      <select id="bank-difficulty">
+        <option>Easy</option><option selected>Medium</option><option>Hard</option>
+      </select>
+    </label>
+    <label>Question<textarea id="bank-prompt" rows="8" placeholder="Paste the full prompt here"></textarea></label>
+    <label>Notes<textarea id="bank-notes" rows="3" placeholder="Constraints, what tripped you up..."></textarea></label>
+    <div class="modal-foot">
+      <button id="bank-delete" class="btn-ghost danger">Delete</button>
+      <div class="spacer"></div>
+      <button id="bank-cancel" class="btn-ghost">Cancel</button>
+      <button id="bank-save" class="btn-primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="data.js"></script>
+<script src="data/problems.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+<script src="js/store.js"></script>
+<script src="js/catalog.js"></script>
+<script src="js/themes.js"></script>
+<script src="js/lesson-visuals.js"></script>
+<script src="js/coach.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

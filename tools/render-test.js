@@ -1,0 +1,321 @@
+/* Headless smoke test: loads the app in jsdom, walks every route, and fails
+   on any thrown error, console error, or empty view.
+
+   node tools/render-test.js */
+
+const fs = require("fs");
+const path = require("path");
+const { JSDOM, VirtualConsole } = require("jsdom");
+
+const root = path.join(__dirname, "..");
+const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
+
+const errors = [];
+const vc = new VirtualConsole();
+vc.on("jsdomError", (e) => errors.push("jsdomError: " + e.message));
+vc.on("error", (...a) => errors.push("console.error: " + a.join(" ")));
+vc.on("warn", (m) => {
+  if (!/supabase/i.test(String(m))) errors.push("console.warn: " + m);
+});
+
+const dom = new JSDOM(read("index.html"), {
+  url: "http://localhost:8000/",
+  runScripts: "outside-only",
+  pretendToBeVisual: true,
+  virtualConsole: vc
+});
+
+const { window } = dom;
+
+/* Things the CDN and the browser would normally provide. */
+window.CodeMirror = undefined;
+window.fetch = () => Promise.reject(new Error("offline in tests"));
+window.crypto = window.crypto || {};
+window.crypto.randomUUID = () => "test-user-key";
+window.confirm = () => true;
+window.scrollTo = () => {};
+window.HTMLElement.prototype.scrollIntoView = () => {};
+
+/* Browsers share one global scope across <script> tags, so concatenate. */
+const bundle =
+  [
+    "config.js",
+    "data.js",
+    "data/problems.js",
+    "js/store.js",
+    "js/catalog.js",
+    "js/themes.js",
+    "js/lesson-visuals.js",
+    "js/coach.js",
+    "js/app.js"
+  ]
+    .map(read)
+    .join("\n;\n") +
+  /* Top-level const is script-scoped, not a window property, in browsers too.
+     The app relies on that shared scope; the test needs handles. */
+  `\n;Object.assign(window, {
+      PROBLEMS, PATTERNS, PRACTICE_QUESTIONS, state, isSolved, isAttempted,
+      setChatOpen, getProblem, COMPANY_INDEX, statsFor, overallStats,
+      submitForReview, setEditorValue, db, progressFor
+    });`;
+
+let failures = 0;
+const check = (name, ok, detail) => {
+  if (ok) {
+    console.log(`  ok    ${name}`);
+  } else {
+    failures++;
+    console.log(`  FAIL  ${name}${detail ? " -- " + detail : ""}`);
+  }
+};
+
+try {
+  window.eval(bundle);
+} catch (e) {
+  console.error("Bundle threw on load:\n", e.stack);
+  process.exit(1);
+}
+
+const $ = (id) => window.document.getElementById(id);
+
+function visit(hash) {
+  window.location.hash = hash;
+  window.dispatchEvent(new window.Event("hashchange"));
+}
+
+console.log("\ndata");
+check("problems loaded", window.PROBLEMS.length >= 3000, `got ${window.PROBLEMS.length}`);
+check("150 in NeetCode 150", window.PROBLEMS.filter((p) => p.neetcode150).length === 150);
+check("75 in Blind 75", window.PROBLEMS.filter((p) => p.blind75).length === 75);
+check(
+  "curated lists have content",
+  window.PROBLEMS.filter((p) => p.neetcode150 || p.blind75).every((p) => p.content.length > 40)
+);
+check(
+  "most problems have a Java stub",
+  window.PROBLEMS.filter((p) => p.java && (p.java.includes("class") || p.java.includes("interface"))).length >= 2400
+);
+check("every problem has a difficulty", window.PROBLEMS.every((p) => ["Easy", "Medium", "Hard"].includes(p.difficulty)));
+check("company tags present", window.PROBLEMS.every((p) => p.companies.length > 0));
+check("tiktok has 300+ questions", window.PROBLEMS.filter((p) => p.companies.some((c) => c.name === "tiktok")).length >= 300);
+check("40 curated questions", window.PRACTICE_QUESTIONS.length === 40);
+
+console.log("\nroutes");
+const routes = [
+  ["#/", "view-home", "home-cards"],
+  ["#/all", "view-list", "list-body"],
+  ["#/neetcode150", "view-list", "list-body"],
+  ["#/blind75", "view-list", "list-body"],
+  ["#/companies", "view-companies", "company-grid"],
+  ["#/company/tiktok", "view-list", "list-body"],
+  ["#/learn", "view-learn", "learn-body"],
+  ["#/bank", "view-bank", "bank-body"],
+  ["#/progress", "view-progress", "progress-summary"]
+];
+
+for (const [hash, viewId, contentId] of routes) {
+  visit(hash);
+  const shown = !$(viewId).classList.contains("hidden");
+  const filled = $(contentId).innerHTML.trim().length > 0;
+  check(`${hash} shows ${viewId}`, shown);
+  check(`${hash} renders content`, filled, `${contentId} is empty`);
+}
+
+console.log("\nlessons");
+for (const p of window.PATTERNS) {
+  visit(`#/learn/${encodeURIComponent(p.id)}`);
+  const body = $("lesson-body").innerHTML;
+  check(`lesson ${p.id}`, body.length > 400 && $("lesson-title").textContent === p.name);
+}
+
+console.log("\nsolve view");
+const samples = [
+  "two-sum",
+  "merge-k-sorted-lists",
+  "meeting-rooms-ii",
+  "alien-dictionary",
+  "learn:" + window.PRACTICE_QUESTIONS[0].id
+];
+for (const key of samples) {
+  visit(`#/solve/${encodeURIComponent(key)}`);
+  const title = $("q-title").textContent;
+  const prompt = $("q-prompt").innerHTML;
+  const code = $("q-code").value;
+  check(`solve ${key}`, title.length > 0 && prompt.length > 40, `title="${title}" prompt=${prompt.length}b`);
+  check(`solve ${key} has starter code`, code.length > 10, `${code.length} chars`);
+}
+
+console.log("\ninteractions");
+visit("#/solve/two-sum");
+$("q-solved").checked = true;
+$("q-solved").dispatchEvent(new window.Event("change"));
+check("marking solved persists", window.isSolved("two-sum"));
+check("solved shows on the list", (() => {
+  visit("#/neetcode150");
+  return $("list-body").innerHTML.includes("tick done");
+})());
+
+visit("#/solve/two-sum");
+$("q-solved").checked = false;
+$("q-solved").dispatchEvent(new window.Event("change"));
+check("unmarking solved persists", !window.isSolved("two-sum"));
+
+visit("#/neetcode150");
+$("f-difficulty").value = "Hard";
+$("f-difficulty").dispatchEvent(new window.Event("change"));
+const hardOnly = !$("list-body").innerHTML.includes("badge easy");
+check("difficulty filter narrows the list", hardOnly);
+$("f-clear").click();
+check("clear restores the list", $("list-body").innerHTML.includes("badge easy"));
+
+$("f-search").value = "island";
+window.state.prefs.filters.q = "island";
+visit("#/neetcode150");
+check("search matches", $("list-body").innerHTML.toLowerCase().includes("island"));
+window.state.prefs.filters.q = "";
+
+console.log("\ncompany sort");
+visit("#/company/tiktok");
+check("company sort dropdown visible", !$("f-company-sort").classList.contains("hidden"));
+check("group checkbox hidden on company page", $("f-group-wrap").classList.contains("hidden"));
+$("f-company-sort").value = "recent";
+$("f-company-sort").dispatchEvent(new window.Event("change"));
+check("recent sort updates subtitle", /recent/i.test($("list-sub").textContent));
+$("f-company-sort").value = "topic";
+$("f-company-sort").dispatchEvent(new window.Event("change"));
+check("topic sort groups list", $("list-body").innerHTML.includes("group-head"));
+window.state.prefs.companySort = "freq";
+
+console.log("\nreview rendering");
+visit("#/solve/two-sum");
+window.state.reviews["two-sum"] = {
+  verdict: "almost",
+  score: 72,
+  time: "O(n)",
+  space: "O(n)",
+  optimal: false,
+  summary: "Works but allocates twice.",
+  strengths: ["Uses a hash map for the complement lookup."],
+  improvements: [{ title: "Single pass", detail: "Build the map as you scan.", severity: "performance" }],
+  edgeCases: ["Duplicate values that sum to the target."],
+  resources: [{ title: "Two Sum", url: "https://leetcode.com/problems/two-sum/", why: "Editorial." }],
+  at: new Date().toISOString()
+};
+visit("#/solve/two-sum");
+window.descTab = "review";
+const tabs = [...window.document.querySelectorAll(".ptab")];
+tabs.find((t) => t.dataset.dtab === "review").click();
+const rv = $("tab-review").innerHTML;
+check("review tab renders", rv.includes("72") && rv.includes("Single pass") && rv.includes("leetcode.com"));
+check("review tab is visible", !$("tab-review").classList.contains("hidden"));
+
+visit("#/progress");
+check("review appears in history", $("progress-history").innerHTML.includes("Two Sum"));
+check("weak spots computed", $("progress-weak").innerHTML.includes("Single pass"));
+
+console.log("\nchat panel");
+window.setChatOpen(true);
+check("chat opens", !$("chat").classList.contains("hidden"));
+window.setChatOpen(false);
+check("chat closes", $("chat").classList.contains("hidden"));
+
+console.log("\nhints");
+visit("#/solve/two-sum");
+tabs.find((t) => t.dataset.dtab === "hint").click();
+check("hints start gated", !$("tab-hint").innerHTML.includes("Hint 1"));
+$("hint-next").click();
+check("first hint reveals", $("tab-hint").innerHTML.includes("Hint 1"));
+check("second hint still gated", !$("tab-hint").innerHTML.includes("Hint 2"));
+
+/* The full submit path, with every network call recorded rather than sent.
+   Gemini and Supabase are each verified for real elsewhere; what matters here
+   is that this app wires them together correctly. */
+(async function submitFlow() {
+  console.log("\nsubmit flow");
+
+  const calls = [];
+  const fakeReview = {
+    verdict: "correct",
+    score: 94,
+    time: "O(n)",
+    space: "O(n)",
+    optimal: true,
+    summary: "Single pass with a complement map.",
+    strengths: ["Handles duplicates correctly."],
+    improvements: [{ title: "Name the map", detail: "seen reads better than m.", severity: "style" }],
+    edgeCases: ["Empty array."],
+    resources: [
+      { title: "Two Sum", url: "https://leetcode.com/problems/two-sum/", why: "Editorial." },
+      { title: "Totally Made Up", url: "https://some-invented-blog.example.com/post", why: "Should be dropped." }
+    ]
+  };
+
+  window.fetch = (url, opts = {}) => {
+    calls.push({ url: String(url), body: opts.body ? JSON.parse(opts.body) : null });
+
+    if (String(url).includes("generativelanguage")) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({ candidates: [{ content: { parts: [{ text: JSON.stringify(fakeReview) }] } }] })
+      });
+    }
+    const rows = String(url).includes("oa_attempts") ? [{ id: "attempt-1" }] : [];
+    return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(rows) });
+  };
+
+  visit("#/solve/two-sum");
+  window.setEditorValue("class Solution { /* real attempt */ }");
+  await window.submitForReview();
+
+  /* Startup sync may still be issuing GETs, so match writes by their body. */
+  const write = (table) => calls.find((c) => c.url.includes(table) && c.body);
+
+  const attempt = write("oa_attempts");
+  check("attempt POSTed to Supabase", !!attempt);
+  check("attempt carries the code", !!attempt && attempt.body.code.includes("real attempt"));
+  check("attempt carries the slug", !!attempt && attempt.body.problem_slug === "two-sum");
+
+  const graded = calls.find((c) => c.url.includes("generativelanguage"));
+  check("solution sent to Gemini", !!graded);
+  check(
+    "prompt includes the problem text",
+    !!graded && JSON.stringify(graded.body).includes("indices of the two numbers")
+  );
+  check("prompt includes the code", !!graded && JSON.stringify(graded.body).includes("real attempt"));
+
+  const saved = window.state.reviews["two-sum"];
+  check("review stored locally", !!saved && saved.score === 94);
+  check("bad resource URL dropped", !!saved && saved.resources.length === 1);
+  check("good resource URL kept", !!saved && saved.resources[0].url.includes("leetcode.com"));
+
+  const reviewRow = write("oa_reviews");
+  check("review POSTed to Supabase", !!reviewRow);
+  check("review linked to the attempt", !!reviewRow && reviewRow.body.attempt_id === "attempt-1");
+
+  check("a correct verdict marks it solved", window.isSolved("two-sum"));
+  check("attempt counted", window.progressFor("two-sum").attempts === 1);
+  check("best score recorded", window.progressFor("two-sum").bestScore === 94);
+
+  const progressRow = calls.filter((c) => c.url.includes("oa_progress") && c.body).pop();
+  check("progress upserted", !!progressRow && progressRow.body.status === "solved");
+
+  visit("#/solve/two-sum");
+  check("review tab opens after grading", !$("tab-review").classList.contains("hidden"));
+  check("review tab shows the score", $("tab-review").innerHTML.includes("94"));
+
+  finish();
+})();
+
+function finish() {
+console.log("");
+if (errors.length) {
+  console.log("runtime errors:");
+  errors.forEach((e) => console.log("  " + e));
+  failures += errors.length;
+}
+
+console.log(failures ? `\n${failures} FAILURE(S)\n` : "\nAll checks passed.\n");
+process.exit(failures ? 1 : 0);
+}
