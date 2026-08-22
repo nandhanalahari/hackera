@@ -1366,12 +1366,22 @@ body.solving[data-ui="codesignal"] .brand .logo { background: #1062fb; color: #f
 
 .practice-shell {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 220px minmax(0, 1fr) 240px;
   min-height: calc(100vh - 56px);
 }
 
 .practice-sidebar {
   border-right: 1px solid var(--border);
+  background: var(--panel);
+  padding: 24px 16px;
+  position: sticky;
+  top: 56px;
+  height: calc(100vh - 56px);
+  overflow-y: auto;
+}
+
+.practice-rail {
+  border-left: 1px solid var(--border);
   background: var(--panel);
   padding: 24px 16px;
   position: sticky;
@@ -1423,16 +1433,16 @@ body.solving[data-ui="codesignal"] .brand .logo { background: #1062fb; color: #f
 .pr-nav-item.active .pr-nav-count { color: var(--accent-glow); opacity: 0.85; }
 
 .practice-activity {
-  margin-top: 28px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border);
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 .pr-meta-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .pr-meta-stat {
@@ -1546,8 +1556,8 @@ body.solving[data-ui="codesignal"] .brand .logo { background: #1062fb; color: #f
 .pr-star.on { color: var(--amber); }
 
 .practice-main {
-  padding: 28px 32px 60px;
-  max-width: 920px;
+  padding: 28px 28px 60px;
+  min-width: 0;
 }
 
 .practice-header {
@@ -1788,6 +1798,19 @@ body.solving[data-ui="codesignal"] .brand .logo { background: #1062fb; color: #f
 .pr-diff.medium { color: var(--medium); }
 .pr-diff.hard { color: var(--hard); }
 
+@media (max-width: 1100px) {
+  .practice-shell { grid-template-columns: 200px minmax(0, 1fr); }
+  .practice-rail {
+    grid-column: 1 / -1;
+    position: static;
+    height: auto;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    padding: 16px;
+  }
+  .pr-week-cal { max-width: 420px; }
+}
+
 @media (max-width: 900px) {
   .practice-shell { grid-template-columns: 1fr; }
   .practice-sidebar {
@@ -1798,12 +1821,11 @@ body.solving[data-ui="codesignal"] .brand .logo { background: #1062fb; color: #f
     padding: 16px;
   }
   .practice-nav { flex-direction: row; flex-wrap: wrap; }
-  .practice-main { padding: 20px 16px 48px; }
+  .practice-main { padding: 20px 16px 32px; }
   .practice-header { flex-direction: column; }
   .practice-stats { align-items: flex-start; width: 100%; }
   .pr-row { grid-template-columns: 24px 20px 36px minmax(0, 1fr) auto auto; }
   .pr-row .pr-score,
   .pr-row .pr-premium:nth-child(n) { display: none; }
-  .practice-activity { margin-top: 16px; }
 }
 
