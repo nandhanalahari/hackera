@@ -101,6 +101,7 @@ function renderDesignDrill() {
       if (!state.designProgress) state.designProgress = {};
       state.designProgress[key] = { pick, completed: true, at: Date.now() };
       persist.designProgress();
+      if (typeof bumpActivity === "function") bumpActivity("design");
       renderDesignDrill();
     });
   });

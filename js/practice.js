@@ -32,6 +32,7 @@ function renderPractice() {
   $("pr-medium").textContent = `${stats.medium[0]} / ${stats.medium[1]}`;
   $("pr-hard").textContent = `${stats.hard[0]} / ${stats.hard[1]}`;
   $("pr-solved-label").textContent = `${stats.solved} / ${stats.total} solved`;
+  renderActivitySidebar(stats);
 
   $("pf-search").value = f.q;
   $("pf-difficulty").value = f.difficulty;
@@ -75,14 +76,15 @@ function renderPractice() {
         .map((p) => {
           const review = state.reviews[p.slug];
           const diff = p.difficulty.toLowerCase();
-          return `<a class="pr-row" href="#/solve/${encodeURIComponent(p.slug)}">
+          return `<div class="pr-row">
             <span class="pr-status">${statusIcon(p.slug)}</span>
+            <button type="button" class="pr-star${isStarred(p.slug) ? " on" : ""}" data-slug="${escapeHtml(p.slug)}" aria-label="${isStarred(p.slug) ? "Unstar" : "Star"} problem">★</button>
             <span class="pr-num">${p.id}</span>
-            <span class="pr-title">${escapeHtml(p.title)}</span>
-            ${p.paid ? '<span class="pr-premium" title="Premium">+</span>' : ""}
-            ${review && review.score != null ? `<span class="pr-score s${scoreBand(review.score)}">${review.score}</span>` : ""}
+            <a class="pr-title" href="#/solve/${encodeURIComponent(p.slug)}">${escapeHtml(p.title)}</a>
+            ${p.paid ? '<span class="pr-premium" title="Premium">+</span>' : "<span></span>"}
+            ${review && review.score != null ? `<span class="pr-score s${scoreBand(review.score)}">${review.score}</span>` : "<span></span>"}
             <span class="pr-diff ${diff}">${p.difficulty}</span>
-          </a>`;
+          </div>`;
         })
         .join("");
       return `<section class="pr-cat${isCollapsed ? " collapsed" : ""}${done === items.length ? " complete" : ""}" data-cat-key="${escapeHtml(key)}">
@@ -105,6 +107,15 @@ function renderPractice() {
       if (!state.prefs.practiceCollapsed) state.prefs.practiceCollapsed = {};
       state.prefs.practiceCollapsed[catKey] = nowCollapsed;
       persist.prefs();
+    });
+  });
+
+  $("practice-body").querySelectorAll(".pr-star").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleStar(btn.dataset.slug);
+      renderPractice();
     });
   });
 

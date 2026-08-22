@@ -1083,7 +1083,9 @@ function autosaveCode() {
 
 function toggleSolved() {
   if (!currentKey) return;
-  setStatus(currentKey, $("q-solved").checked ? "solved" : "attempted");
+  const marking = $("q-solved").checked;
+  setStatus(currentKey, marking ? "solved" : "attempted");
+  if (marking && typeof bumpActivity === "function") bumpActivity("solve");
   renderSolve();
 }
 
@@ -1233,6 +1235,7 @@ async function submitForReview() {
 
   setCode(currentKey, code);
   recordAttempt(currentKey);
+  if (typeof bumpActivity === "function") bumpActivity("attempt");
   setBusy(true);
   $("q-submit").textContent = "Reviewing...";
 
@@ -1255,7 +1258,10 @@ async function submitForReview() {
     persist.reviews();
 
     if (review.score != null) bumpBestScore(problem.key, review.score);
-    if (review.verdict === "correct") setStatus(problem.key, "solved");
+    if (review.verdict === "correct") {
+      setStatus(problem.key, "solved");
+      if (typeof bumpActivity === "function") bumpActivity("solve");
+    }
     db.saveReview(attemptId, problem.key, review);
 
     descTab = "review";
@@ -1515,6 +1521,7 @@ function init() {
   initSplits();
   initFilters();
   initPracticeFilters();
+  initActivity();
 
   $("q-prev").addEventListener("click", () => moveProblem(-1));
   $("q-next").addEventListener("click", () => moveProblem(1));

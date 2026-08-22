@@ -1422,6 +1422,129 @@ body.solving[data-ui="codesignal"] .brand .logo { background: #1062fb; color: #f
 
 .pr-nav-item.active .pr-nav-count { color: var(--accent-glow); opacity: 0.85; }
 
+.practice-activity {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.pr-meta-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.pr-meta-stat {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.pr-meta-stat .lbl {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  margin-bottom: 4px;
+}
+
+.pr-meta-stat strong {
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+.pr-streak {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  opacity: 0.65;
+  transition: opacity .15s, border-color .15s;
+}
+
+.pr-streak.active {
+  opacity: 1;
+  border-color: rgba(255, 140, 0, 0.35);
+  background: rgba(255, 140, 0, 0.06);
+}
+
+.pr-streak-flame { font-size: 16px; line-height: 1; }
+.pr-streak-lbl { font-size: 12px; color: var(--text-dim); }
+
+#pr-streak-num {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.pr-week-cal {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.pr-week-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.pr-week-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-faint);
+  font-family: var(--mono);
+}
+
+.pr-week-col.today .pr-week-lbl { color: var(--accent-glow); }
+
+.pr-week-bar {
+  width: 100%;
+  height: 36px;
+  background: var(--panel-3);
+  border-radius: 4px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.pr-week-col.today .pr-week-bar { border-color: rgba(0, 255, 136, 0.35); }
+
+.pr-week-bar i {
+  display: block;
+  width: 100%;
+  background: var(--text-faint);
+  border-radius: 3px 3px 0 0;
+  transition: height .2s ease;
+}
+
+.pr-week-bar.lvl-1 i { background: rgba(0, 255, 136, 0.45); }
+.pr-week-bar.lvl-2 i { background: rgba(0, 255, 136, 0.72); }
+.pr-week-bar.lvl-3 i { background: var(--accent-glow); }
+
+.pr-star {
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  font-size: 15px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  transition: color .12s, transform .12s;
+}
+
+.pr-star:hover { color: var(--amber); transform: scale(1.1); }
+.pr-star.on { color: var(--amber); }
+
 .practice-main {
   padding: 28px 32px 60px;
   max-width: 920px;
@@ -1599,9 +1722,9 @@ body.solving[data-ui="codesignal"] .brand .logo { background: #1062fb; color: #f
 
 .pr-row {
   display: grid;
-  grid-template-columns: 28px 48px 1fr auto auto;
+  grid-template-columns: 28px 22px 44px minmax(0, 1fr) auto auto auto;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 10px 16px;
   font-size: 13.5px;
   color: var(--text-dim);
@@ -1616,14 +1739,6 @@ body.solving[data-ui="codesignal"] .brand .logo { background: #1062fb; color: #f
   color: var(--text);
 }
 
-.pr-status .tick { font-size: 14px; }
-
-.pr-num {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--text-faint);
-}
-
 .pr-title {
   color: var(--text);
   font-weight: 500;
@@ -1631,6 +1746,17 @@ body.solving[data-ui="codesignal"] .brand .logo { background: #1062fb; color: #f
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-decoration: none;
+}
+
+.pr-title:hover { color: var(--accent-glow); }
+
+.pr-status .tick { font-size: 14px; }
+
+.pr-num {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-faint);
 }
 
 .pr-premium {
@@ -1675,7 +1801,9 @@ body.solving[data-ui="codesignal"] .brand .logo { background: #1062fb; color: #f
   .practice-main { padding: 20px 16px 48px; }
   .practice-header { flex-direction: column; }
   .practice-stats { align-items: flex-start; width: 100%; }
-  .pr-row { grid-template-columns: 24px 40px 1fr auto; }
-  .pr-score { display: none; }
+  .pr-row { grid-template-columns: 24px 20px 36px minmax(0, 1fr) auto auto; }
+  .pr-row .pr-score,
+  .pr-row .pr-premium:nth-child(n) { display: none; }
+  .practice-activity { margin-top: 16px; }
 }
 

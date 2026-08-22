@@ -48,6 +48,7 @@ const bundle =
     "js/themes.js",
     "js/lesson-visuals.js",
     "js/design.js",
+    "js/activity.js",
     "js/practice.js",
     "js/coach.js",
     "js/app.js"
@@ -152,6 +153,11 @@ for (const key of samples) {
   check(`solve ${key}`, title.length > 0 && prompt.length > 40, `title="${title}" prompt=${prompt.length}b`);
   check(`solve ${key} has starter code`, code.length > 10, `${code.length} chars`);
 }
+
+console.log("\npractice activity");
+visit("#/practice/neetcode150");
+check("activity sidebar renders", !!$("pr-week-cal").innerHTML.includes("pr-week-col"));
+check("streak label present", $("pr-streak-num").textContent.length >= 1);
 
 console.log("\ninteractions");
 visit("#/solve/two-sum");

@@ -81,6 +81,8 @@ const state = {
     companySort: "freq",
     filters: { q: "", difficulty: "all", status: "all", company: "all" },
     practiceCollapsed: {},
+    starred: {},
+    activityBackfilled: false,
     expandedPattern: null
   }),
   learning: load(KEYS.learning, {}),
