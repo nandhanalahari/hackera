@@ -82,7 +82,37 @@ function serveStatic(req, res) {
   }
 
   const ext = path.extname(file);
-  send(res, 200, fs.readFileSync(file), { "Content-Type": MIME[ext] || "application/octet-stream" });
+  const data = fs.readFileSync(file);
+  const type = MIME[ext] || "application/octet-stream";
+  const range = req.headers.range;
+  if (range) {
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    if (!match) {
+      res.writeHead(416, { "Content-Range": `bytes */${data.length}` });
+      res.end();
+      return;
+    }
+    let start = match[1] ? Number(match[1]) : 0;
+    let end = match[2] ? Number(match[2]) : data.length - 1;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start > end || start >= data.length) {
+      res.writeHead(416, { "Content-Range": `bytes */${data.length}` });
+      res.end();
+      return;
+    }
+    end = Math.min(end, data.length - 1);
+    const slice = data.subarray(start, end + 1);
+    res.writeHead(206, {
+      "Content-Type": type,
+      "Content-Length": slice.length,
+      "Content-Range": `bytes ${start}-${end}/${data.length}`,
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "no-store"
+    });
+    if (req.method !== "HEAD") res.end(slice);
+    else res.end();
+    return;
+  }
+  send(res, 200, data, { "Content-Type": type, "Accept-Ranges": "bytes" });
 }
 
 /* ------------------------------------------------------------------ */

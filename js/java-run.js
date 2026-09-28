@@ -30,7 +30,7 @@
     if (!booting) {
       booting = (async () => {
         await loadScript(LOADER);
-        await cheerpjInit({ version: 17, status: "none" });
+        await cheerpjInit({ version: 8, status: "none" });
       })();
     }
     return booting;
@@ -62,7 +62,7 @@
     const quoted = JSON.stringify(outPath);
     const replacement = `static PrintStream openHackeraOut() {
         try {
-            return new PrintStream(new FileOutputStream(${quoted}), true, "UTF-8");
+            return new PrintStream(new FileOutputStream(${quoted}), true);
         } catch (Exception e) {
             return System.err;
         }
@@ -120,8 +120,8 @@
     const compiled = await runJava(
       "org.eclipse.jdt.internal.compiler.batch.Main",
       "/app/vendor/ecj.jar",
-      ["-17", "-d", classDir, "-log", logPath, "/str/Solution.java", "/str/Main.java"],
-      25000,
+      ["-1.8", "-bootclasspath", "/lt/8/jre/lib/rt.jar", "-d", classDir, "-log", logPath, "/str/Solution.java", "/str/Main.java"],
+      60000,
       "Compilation timed out."
     );
 
