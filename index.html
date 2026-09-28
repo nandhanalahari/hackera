@@ -46,6 +46,12 @@
       </div>
       <input id="api-key" type="password" placeholder="Gemini key" size="12" spellcheck="false" aria-label="Gemini API key">
     </div>
+    <button id="nav-signin" class="btn-ghost" type="button">Sign in</button>
+    <div id="user-menu" class="user-menu hidden">
+      <span id="user-avatar" class="user-avatar" aria-hidden="true">H</span>
+      <span id="user-name" class="user-name"></span>
+      <button id="nav-signout" class="btn-ghost small" type="button" title="Sign out">Sign out</button>
+    </div>
     <span id="sync-badge" class="sync" title="Supabase sync status">&#9679; local</span>
     <button id="chat-toggle" class="btn-ghost chat-toggle" title="Toggle the coach (Cmd/Ctrl + J)">
       <span class="dot" id="chat-dot"></span>Coach
@@ -53,11 +59,71 @@
   </div>
 </header>
 
+<div id="auth-overlay" class="auth-overlay hidden" aria-hidden="true">
+  <div class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+    <button id="auth-close" class="auth-close" type="button" aria-label="Close">×</button>
+    <div class="auth-brand">
+      <span class="auth-logo">H</span>
+      <h2 id="auth-title">Welcome back</h2>
+      <p id="auth-sub" class="muted">Sign in to sync progress and pick up where you left off.</p>
+    </div>
+    <form id="auth-form" autocomplete="on">
+      <div id="auth-name-field" class="auth-field hidden">
+        <label for="auth-name">Display name</label>
+        <input id="auth-name" type="text" placeholder="Your name" autocomplete="name">
+      </div>
+      <div class="auth-field">
+        <label for="auth-email">Email</label>
+        <input id="auth-email" type="email" placeholder="you@example.com" required autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <label for="auth-password">Password</label>
+        <input id="auth-password" type="password" placeholder="••••••••" required minlength="6" autocomplete="current-password">
+      </div>
+      <p id="auth-error" class="auth-error hidden"></p>
+      <button id="auth-submit" class="btn-primary auth-submit" type="submit">Sign in</button>
+    </form>
+    <p class="auth-toggle">
+      <span id="auth-toggle-text">New here?</span>
+      <a href="#" id="auth-toggle-link">Create one</a>
+    </p>
+  </div>
+</div>
+
 <div id="shell">
   <main id="page">
 
+    <!-- -------------------------------------------------------- landing -->
+    <section id="view-landing" class="view landing-view">
+      <div class="landing-bg" aria-hidden="true"></div>
+      <div class="landing-inner">
+        <div class="landing-brand">
+          <span class="landing-mark">H</span>
+          <span class="landing-name">Hackera</span>
+        </div>
+        <h1 class="landing-title">Interview prep<br>that actually <span class="landing-accent">sticks</span><span class="cursor-blink">_</span></h1>
+        <p class="landing-lede">Interactive coding patterns, system design judgment drills, a full practice bank, and live internship postings — one workspace for the loop.</p>
+        <div class="landing-actions">
+          <button type="button" class="btn-primary landing-cta" data-auth="signup">Create account</button>
+          <button type="button" class="btn-ghost landing-cta-ghost" data-auth="signin">Sign in</button>
+        </div>
+        <ul class="landing-pillars">
+          <li><strong>Learn</strong><span>Patterns with walkthroughs &amp; quizzes</span></li>
+          <li><strong>Design</strong><span>Constraint → decision → axis drills</span></li>
+          <li><strong>Practice</strong><span>Blind 75, NeetCode 150, company sets</span></li>
+          <li><strong>Jobs</strong><span>Latest internships, updated live</span></li>
+        </ul>
+      </div>
+    </section>
+
     <!-- ---------------------------------------------------------- home -->
     <section id="view-home" class="view home-view">
+      <div class="home-atmosphere" aria-hidden="true">
+        <div class="home-grid"></div>
+        <div class="home-orb home-orb-a"></div>
+        <div class="home-orb home-orb-b"></div>
+      </div>
+
       <div class="home-hero">
         <div class="home-hero-copy">
           <p class="home-kicker">Internship pipeline</p>
@@ -92,20 +158,45 @@
             <span id="home-design-total" class="muted">of 0 practiced</span>
             <div class="bar wide"><i id="home-design-bar"></i></div>
           </div>
+          <div class="stat-panel live">
+            <span class="stat-label"><span class="live-dot"></span> Open roles tracked</span>
+            <strong id="home-jobs-count">—</strong>
+            <span class="muted">from Intern List · refreshed live</span>
+          </div>
         </div>
       </div>
 
-      <h2 class="section-heading">Your tracks</h2>
-      <div id="home-cards" class="cards"></div>
+      <div class="home-rail">
+        <article class="home-panel">
+          <span class="home-panel-index">01</span>
+          <h2>Pattern fluency</h2>
+          <p>Sliding window, graphs, DP — teach the move once, then grind variants until interview pace feels automatic.</p>
+          <a class="home-panel-link" href="#/learn">Open learning →</a>
+        </article>
+        <article class="home-panel accent">
+          <span class="home-panel-index">02</span>
+          <h2>Design judgment</h2>
+          <p>Constraint-first drills. Pick the tradeoff, see the axis, build intuition for the system design round.</p>
+          <a class="home-panel-link" href="#/design">Train decisions →</a>
+        </article>
+        <article class="home-panel">
+          <span class="home-panel-index">03</span>
+          <h2>Apply while hot</h2>
+          <p>Hourly-updated internships from the same feed as Intern List — newest roles first, not a stale GitHub dump.</p>
+          <a class="home-panel-link" href="#/jobs">Browse openings →</a>
+        </article>
+      </div>
 
-      <div class="home-split">
-        <div>
-          <h2 class="section-heading">Pick up where you left off</h2>
-          <ul id="home-recent" class="recent"></ul>
+      <div class="home-pulse">
+        <div class="home-pulse-head">
+          <div>
+            <p class="home-kicker">Live openings</p>
+            <h2>Just posted</h2>
+          </div>
+          <a class="btn-ghost small" href="#/jobs">See all</a>
         </div>
-        <div>
-          <h2 class="section-heading">What to work on</h2>
-          <ul id="home-focus" class="focus"></ul>
+        <div id="home-jobs-pulse" class="home-pulse-list">
+          <p class="muted">Loading fresh roles…</p>
         </div>
       </div>
     </section>
@@ -265,7 +356,7 @@
         <h1 id="lesson-title"></h1>
         <div id="lesson-actions" class="lesson-actions">
           <button id="lesson-quiz" class="btn-ghost">Quiz me</button>
-          <button id="lesson-start" class="btn-primary">Start practising</button>
+          <button id="lesson-start" class="btn-primary">Start practicing</button>
         </div>
       </div>
       <div id="lesson-body" class="prose"></div>
@@ -288,19 +379,15 @@
     <section id="view-jobs" class="view hidden">
       <div class="list-head">
         <div>
-          <h1>Jobs & resources</h1>
-          <p class="muted">Live internship / new-grad trackers ranked against your resume, plus the lists this app is built on.</p>
+          <h1>Latest jobs</h1>
+          <p class="muted">Live internships from <a href="https://www.intern-list.com/" target="_blank" rel="noopener">Intern List</a> — newest first, updated hourly.</p>
         </div>
         <div class="list-progress" style="flex-direction:column;align-items:flex-end;gap:8px">
           <span id="jobs-meta" class="muted"></span>
-          <button id="jobs-refresh" class="btn-ghost small">Refresh lists</button>
+          <button id="jobs-refresh" class="btn-ghost small">Refresh</button>
         </div>
       </div>
 
-      <h2 class="section-heading">Links</h2>
-      <div id="jobs-resources" class="cards"></div>
-
-      <h2 class="section-heading">Live tracker</h2>
       <div class="filters">
         <input id="jobs-search" type="search" placeholder="Search company or role" spellcheck="false">
         <select id="jobs-kind">
@@ -309,23 +396,32 @@
           <option value="newgrad">New grad</option>
           <option value="pm">PM</option>
         </select>
+        <select id="jobs-section">
+          <option value="all" selected>All tracks</option>
+          <option value="Software Engineering">Software Engineering</option>
+          <option value="ML / AI">ML / AI</option>
+          <option value="Data Analysis">Data Analysis</option>
+          <option value="Product Management">Product Management</option>
+          <option value="SWE New Grad">SWE New Grad</option>
+        </select>
         <select id="jobs-sort">
-          <option value="both" selected>Best match &amp; latest</option>
-          <option value="fit">Best fit for you</option>
-          <option value="new">Newest first</option>
+          <option value="new" selected>Newest first</option>
           <option value="company">Company A–Z</option>
         </select>
       </div>
       <div id="jobs-banner" class="jobs-banner muted"></div>
       <div id="jobs-body" class="list-body"></div>
+
+      <h2 class="section-heading">Resources</h2>
+      <div id="jobs-resources" class="cards"></div>
     </section>
 
     <!-- ------------------------------------------------------ design -->
     <section id="view-design" class="view hidden">
       <div class="list-head">
         <div>
-          <h1>System design judgment</h1>
-          <p class="muted">Read the constraints, make the call, learn the axis — three minutes per decision.</p>
+          <h1>System design</h1>
+          <p class="muted">A tree for each topic: learn the idea, then answer the check under that branch.</p>
         </div>
         <div class="list-progress">
           <div class="bar wide"><i id="design-bar"></i></div>
@@ -343,7 +439,7 @@
           <p id="design-topic-sub" class="muted"></p>
         </div>
       </div>
-      <div id="design-topic-scenarios" class="cards"></div>
+      <div id="design-topic-scenarios" class="sd-course"></div>
     </section>
 
     <section id="view-design-drill" class="view hidden">
@@ -479,6 +575,7 @@
 <script src="config.js"></script>
 <script src="data.js"></script>
 <script src="data/problems.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
@@ -493,6 +590,7 @@
 <script src="js/activity.js"></script>
 <script src="js/practice.js"></script>
 <script src="js/coach.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

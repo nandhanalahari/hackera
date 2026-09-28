@@ -4,7 +4,11 @@
 /* router                                                              */
 /* ------------------------------------------------------------------ */
 
-const VIEWS = ["home", "list", "companies", "learn", "lesson", "bank", "jobs", "progress", "solve", "design", "design-topic", "design-drill", "practice"];
+const VIEWS = ["landing", "home", "list", "companies", "learn", "lesson", "bank", "jobs", "progress", "solve", "design", "design-topic", "design-drill", "practice"];
+
+function isLoggedIn() {
+  return typeof Auth !== "undefined" && Auth.isLoggedIn && Auth.isLoggedIn();
+}
 
 function parseRoute() {
   const raw = (location.hash || "#/").replace(/^#\/?/, "");
@@ -12,6 +16,8 @@ function parseRoute() {
 
   if (!parts.length) return { name: "home" };
   switch (parts[0]) {
+    case "landing":
+      return { name: "landing" };
     case "practice":
       return { name: "practice", listId: practiceListId(parts[1] || "neetcode150") };
     case "neetcode150":
@@ -42,10 +48,23 @@ function parseRoute() {
 }
 
 function navigate() {
-  const route = parseRoute();
-  state.route = route;
+  let route = parseRoute();
 
-  VIEWS.forEach((v) => $("view-" + v).classList.toggle("hidden", v !== route.name));
+  if (!isLoggedIn()) {
+    route = { name: "landing" };
+  } else if (route.name === "landing") {
+    route = { name: "home" };
+    if (location.hash === "#/landing") history.replaceState(null, "", "#/");
+  }
+
+  state.route = route;
+  document.body.classList.toggle("guest", route.name === "landing");
+  document.body.classList.toggle("authed", route.name !== "landing");
+
+  VIEWS.forEach((v) => {
+    const el = $("view-" + v);
+    if (el) el.classList.toggle("hidden", v !== route.name);
+  });
   const solving = route.name === "solve";
   document.body.classList.toggle("solving", solving);
   if (typeof syncUiThemeForRoute === "function") syncUiThemeForRoute(solving);
@@ -68,6 +87,9 @@ function navigate() {
   });
 
   switch (route.name) {
+    case "landing":
+      document.title = "Hackera";
+      break;
     case "home": renderHome(); break;
     case "list": renderList(); break;
     case "practice": renderPractice(); break;
@@ -83,7 +105,7 @@ function navigate() {
     case "solve": renderSolve(); break;
   }
 
-  if (route.name !== "solve") document.title = "Hackera";
+  if (route.name !== "solve" && route.name !== "landing") document.title = "Hackera";
   window.scrollTo(0, 0);
 }
 
@@ -126,18 +148,23 @@ function pct(a, b) {
 function renderSyncBadge() {
   const el = $("sync-badge");
   if (!el) return;
+  const loggedIn = typeof Auth !== "undefined" && Auth.isLoggedIn && Auth.isLoggedIn();
   if (!db.enabled) {
     el.textContent = "\u25CF local";
     el.className = "sync";
     el.title = "Supabase is not configured; progress lives in this browser only.";
+  } else if (!loggedIn) {
+    el.textContent = "\u25CF guest";
+    el.className = "sync";
+    el.title = "Browsing as guest. Sign in to sync progress across devices.";
   } else if (db.online) {
     el.textContent = "\u25CF synced";
     el.className = "sync ok";
-    el.title = "Attempts and reviews are saved to Supabase.";
+    el.title = "Signed in — attempts and reviews sync to your account.";
   } else {
     el.textContent = "\u25CF offline";
     el.className = "sync warn";
-    el.title = "Supabase unreachable. Work is saved locally and will sync on the next successful write.";
+    el.title = "Supabase unreachable. Work is saved locally and will sync later.";
   }
 }
 
@@ -161,99 +188,9 @@ function renderHome() {
   $("home-design-total").textContent = `of ${design.total} practiced`;
   $("home-design-bar").style.width = pct(design.done, design.total) + "%";
 
-  const learn = learnStats();
-  const allStats = statsFor(listProblems("all"));
-  const nc = statsFor(listProblems("neetcode150"));
-  const bl = statsFor(listProblems("blind75"));
-  const tk = statsFor(listProblems("company", "tiktok"));
-
-  const cards = [
-    {
-      href: "#/design",
-      kicker: "Stage 2",
-      title: "System design judgment",
-      body: "Constraints on screen → pick the call → learn the axis. Built for later-round internships.",
-      done: design.done,
-      total: design.total,
-      accent: "green"
-    },
-    {
-      href: "#/learn",
-      kicker: "Stage 1",
-      title: "Coding patterns",
-      body: "Ten patterns, each with a lesson, two warm-ups and two interview questions.",
-      done: learn.solved,
-      total: learn.total,
-      accent: "violet"
-    },
-    {
-      href: "#/practice/all",
-      kicker: "Full bank",
-      title: "All questions",
-      body: `${allStats.total} LeetCode problems with company tags where available.`,
-      done: allStats.solved,
-      total: allStats.total,
-      accent: "blue"
-    },
-    {
-      href: "#/practice/neetcode150",
-      kicker: "Curated",
-      title: "NeetCode 150",
-      body: "The standard 150, grouped by topic in the intended order.",
-      done: nc.solved,
-      total: nc.total,
-      accent: "blue"
-    },
-    {
-      href: "#/practice/blind75",
-      kicker: "Curated",
-      title: "Blind 75",
-      body: "The classic shortlist when you are short on time.",
-      done: bl.solved,
-      total: bl.total,
-      accent: "green"
-    },
-    {
-      href: "#/company/tiktok",
-      kicker: "Company",
-      title: "TikTok",
-      body: "Reported TikTok questions, most frequently asked first.",
-      done: tk.solved,
-      total: tk.total,
-      accent: "pink"
-    },
-    {
-      href: "#/companies",
-      kicker: "Company",
-      title: "All companies",
-      body: `${COMPANIES_BY_SIZE.length} companies with reported question sets.`,
-      accent: "amber"
-    },
-    {
-      href: "#/bank",
-      kicker: "Yours",
-      title: "My question bank",
-      body: "Questions you saw for real, saved for another pass.",
-      done: state.bank.filter((b) => isSolved("bank:" + b.id)).length,
-      total: state.bank.length,
-      accent: "slate"
-    },
-    {
-      href: "#/jobs",
-      kicker: "Stage 3",
-      title: "Jobs tracker",
-      body: "Live internships ranked against your resume, plus company-question lists.",
-      accent: "amber"
-    }
-  ];
-
-  $("home-cards").innerHTML = cards.map(cardHtml).join("");
-
-  /* continue where you left off */
   const recent = Object.entries(state.progress)
     .filter(([, p]) => p.attempts)
     .sort((a, b) => (b[1].solvedAt || "").localeCompare(a[1].solvedAt || ""))
-    .slice(0, 6)
     .map(([key]) => getProblem(key))
     .filter(Boolean);
 
@@ -261,34 +198,39 @@ function renderHome() {
   $("home-continue").href = cont ? `#/solve/${encodeURIComponent(cont.key)}` : "#/learn";
   $("home-continue").textContent = cont ? `Continue: ${cont.title}` : "Start learning";
 
-  $("home-recent").innerHTML = recent.length
-    ? recent
-        .map(
-          (p) => `<li><a href="#/solve/${encodeURIComponent(p.key)}">
-            ${statusIcon(p.key)}
-            <span class="rname">${escapeHtml(p.heading)}</span>
-            ${diffBadge(p.difficulty)}
-          </a></li>`
-        )
-        .join("")
-    : `<li class="empty">Nothing attempted yet. Pick a track above.</li>`;
+  loadHomeJobsPulse();
+}
 
-  /* highest-value unsolved problems for the company you care about */
-  const focus = (COMPANY_INDEX[state.prefs.company] || [])
-    .filter((e) => !isSolved(e.problem.slug))
-    .slice(0, 6);
-
-  $("home-focus").innerHTML = focus.length
-    ? focus
-        .map(
-          (e) => `<li><a href="#/solve/${encodeURIComponent(e.problem.slug)}">
-            <span class="freq">${Math.round(e.freq)}%</span>
-            <span class="rname">${escapeHtml(e.problem.title)}</span>
-            ${diffBadge(e.problem.difficulty)}
-          </a></li>`
-        )
-        .join("")
-    : `<li class="empty">Nothing left in this company set.</li>`;
+async function loadHomeJobsPulse() {
+  const pulse = $("home-jobs-pulse");
+  const countEl = $("home-jobs-count");
+  if (!pulse) return;
+  try {
+    const res = await fetch("/api/jobs?kind=intern&sort=new&limit=6");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (countEl) {
+      const hint = data.openingsHint || data.total;
+      countEl.textContent = hint ? Number(hint).toLocaleString() : String(data.total || 0);
+    }
+    const jobs = data.jobs || [];
+    if (!jobs.length) {
+      pulse.innerHTML = `<p class="muted">No live roles yet — open Jobs to refresh.</p>`;
+      return;
+    }
+    pulse.innerHTML = jobs
+      .map(
+        (j) => `<a class="home-pulse-row" href="${escapeHtml(j.apply)}" target="_blank" rel="noopener">
+          <span class="home-pulse-co">${escapeHtml(j.company)}</span>
+          <span class="home-pulse-title">${escapeHtml(j.title)}</span>
+          <span class="home-pulse-meta muted">${escapeHtml(j.location || "—")} · ${escapeHtml(j.age || "new")}</span>
+        </a>`
+      )
+      .join("");
+  } catch (err) {
+    pulse.innerHTML = `<p class="muted">Couldn’t load openings. Is the server running?</p>`;
+    if (countEl) countEl.textContent = "—";
+  }
 }
 
 function cardHtml(c) {
@@ -633,14 +575,15 @@ let jobsState = { loading: false, last: null };
 
 async function renderJobs(opts = {}) {
   const refresh = !!opts.refresh;
-  $("jobs-body").innerHTML = `<p class="empty-state">Loading live postings from GitHub…</p>`;
+  $("jobs-body").innerHTML = `<p class="empty-state">Loading live Intern List postings…</p>`;
   $("jobs-banner").textContent = "";
   jobsState.loading = true;
 
   const kind = $("jobs-kind").value;
+  const section = $("jobs-section") ? $("jobs-section").value : "all";
   const sort = $("jobs-sort").value;
   const q = $("jobs-search").value.trim();
-  const params = new URLSearchParams({ kind, sort, limit: "250" });
+  const params = new URLSearchParams({ kind, sort, section });
   if (q) params.set("q", q);
   if (refresh) params.set("refresh", "1");
 
@@ -671,43 +614,18 @@ function paintJobs(data) {
     .join("");
 
   const when = data.fetchedAt ? new Date(data.fetchedAt).toLocaleString() : "";
-  $("jobs-meta").textContent = data.resumeLoaded
-    ? `${data.total} roles · ranked for ${data.resumeName || "your resume"} · ${when}`
-    : `${data.total} roles · add data/resume.txt to enable ranking · ${when}`;
+  const hint = data.openingsHint ? ` · ~${Number(data.openingsHint).toLocaleString()} in source` : "";
+  $("jobs-meta").textContent = `${data.total} shown${hint} · ${when}`;
 
   const sort = $("jobs-sort").value;
-  const bannerBase = data.resumeLoaded
-    ? `Ranked against <strong>${escapeHtml(data.resumeName || "your resume")}</strong>. Internships are boosted for ~2028 grad. Skills like Java, Python, ML, and security raise the score.`
-    : `Resume file missing — showing unranked lists. Save your resume text to <code>data/resume.txt</code> and hit Refresh.`;
-
-  if (sort === "both") {
-    $("jobs-banner").innerHTML =
-      bannerBase + ` Showing the top matches for your resume and the newest postings side by side.`;
-  } else if (sort === "fit") {
-    $("jobs-banner").innerHTML = bannerBase + ` Sorted by best resume fit.`;
-  } else if (sort === "new") {
-    $("jobs-banner").innerHTML = bannerBase + ` Sorted by newest postings first${data.resumeLoaded ? ", with fit score as tiebreaker" : ""}.`;
-  } else {
-    $("jobs-banner").innerHTML = bannerBase;
-  }
+  const fresh = (data.jobs || []).filter((j) => j.ageDays != null && j.ageDays <= 1).length;
+  $("jobs-banner").innerHTML =
+    sort === "company"
+      ? `Sorted A–Z by company.`
+      : `Newest first from Intern List / Jobright${fresh ? ` · <strong>${fresh}</strong> posted in the last day` : ""}.`;
 
   if (data.errors && data.errors.length) {
     $("jobs-banner").innerHTML += ` <span class="muted">(${data.errors.length} source error${data.errors.length > 1 ? "s" : ""})</span>`;
-  }
-
-  if (sort === "both" && data.best && data.latest) {
-    if (!data.best.length && !data.latest.length) {
-      $("jobs-body").innerHTML = `<p class="empty-state">No roles match these filters.</p>`;
-      return;
-    }
-    $("jobs-body").innerHTML =
-      (data.best.length
-        ? `<section class="jobs-section"><header class="group-head"><h3>Best match for your resume</h3><span class="muted">${data.best.length} roles</span></header>${jobsTableHtml(data.best, data)}</section>`
-        : "") +
-      (data.latest.length
-        ? `<section class="jobs-section"><header class="group-head"><h3>Latest postings</h3><span class="muted">${data.latest.length} roles</span></header>${jobsTableHtml(data.latest, data)}</section>`
-        : "");
-    return;
   }
 
   if (!data.jobs || !data.jobs.length) {
@@ -715,38 +633,30 @@ function paintJobs(data) {
     return;
   }
 
-  $("jobs-body").innerHTML = jobsTableHtml(data.jobs, data);
+  $("jobs-body").innerHTML = jobsTableHtml(data.jobs);
 }
 
-function jobsTableHtml(jobs, data) {
+function jobsTableHtml(jobs) {
   return `<table class="ptable jobs-table">
     <thead><tr>
-      <th>Fit</th><th>Company</th><th>Role</th><th>Location</th><th>Age</th><th>Source</th><th></th>
+      <th>Company</th><th>Role</th><th>Location</th><th>Salary</th><th>Age</th><th>Track</th><th></th>
     </tr></thead>
     <tbody>${jobs
-      .map((j) => {
-        const fit = data.resumeLoaded
-          ? `<span class="fit s${fitBand(j.score)}" title="${escapeHtml((j.reasons || []).join(" · "))}">${Math.round(j.score)}</span>`
-          : `<span class="muted">—</span>`;
-        const why = (j.reasons || []).slice(0, 2).map((r) => escapeHtml(r)).join(" · ");
-        return `<tr>
-          <td class="c-fit">${fit}</td>
+      .map(
+        (j) => `<tr>
           <td class="c-co"><strong>${escapeHtml(j.company)}</strong></td>
           <td class="c-title">
             <a href="${escapeHtml(j.apply)}" target="_blank" rel="noopener">${escapeHtml(j.title)}</a>
-            ${why ? `<div class="job-why muted">${why}</div>` : ""}
+            ${j.workModel ? `<div class="muted tiny">${escapeHtml(j.workModel)}</div>` : ""}
           </td>
           <td class="c-loc muted">${escapeHtml(j.location || "")}</td>
-          <td class="c-age muted mono">${escapeHtml(j.age || (j.ageDays != null ? j.ageDays + "d" : ""))}</td>
-          <td class="c-src"><span class="chip">${escapeHtml(j.kind)}</span></td>
+          <td class="c-sal muted mono">${escapeHtml(j.salary || "—")}</td>
+          <td class="c-age muted mono">${escapeHtml(j.age || (j.ageDays != null ? Math.round(j.ageDays) + "d" : ""))}</td>
+          <td class="c-src"><span class="chip">${escapeHtml(j.section || j.kind)}</span></td>
           <td class="c-act"><a class="btn-ghost small" href="${escapeHtml(j.apply)}" target="_blank" rel="noopener">Apply</a></td>
-        </tr>`;
-      })
+        </tr>`
+      )
       .join("")}</tbody></table>`;
-}
-
-function fitBand(score) {
-  return score >= 45 ? "hi" : score >= 25 ? "mid" : "lo";
 }
 
 /* ------------------------------------------------------------------ */
@@ -1558,6 +1468,7 @@ function init() {
   let jobsSearchTimer = null;
   $("jobs-refresh").addEventListener("click", () => renderJobs({ refresh: true }));
   $("jobs-kind").addEventListener("change", () => renderJobs());
+  if ($("jobs-section")) $("jobs-section").addEventListener("change", () => renderJobs());
   $("jobs-sort").addEventListener("change", () => renderJobs());
   $("jobs-search").addEventListener("input", () => {
     clearTimeout(jobsSearchTimer);
@@ -1624,12 +1535,24 @@ function init() {
   renderTimer();
   renderSyncBadge();
   setInterval(renderTimer, 250);
-  navigate();
 
-  /* Pull the durable copy in the background, then repaint whatever is on screen. */
-  syncFromDb().then((ok) => {
-    if (ok) navigate();
-  });
+  /* Auth first — guests only see landing; never flash app chrome. */
+  document.body.classList.add("guest");
+  const boot = async () => {
+    if (typeof Auth !== "undefined" && Auth.init) {
+      await Auth.init();
+      Auth.onChange((user) => {
+        applyAuthUser(user);
+        navigate();
+      });
+    }
+    if (isLoggedIn()) {
+      await syncFromDb();
+    }
+    navigate();
+    renderSyncBadge();
+  };
+  boot();
 }
 
 init();

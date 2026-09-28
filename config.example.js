@@ -4,7 +4,7 @@
 window.GEMINI_API_KEY = "";
 window.GEMINI_MODEL = "gemini-2.5-flash";
 
-// Optional. Without these the app still works, but progress, attempts and AI
-// reviews live only in this browser's localStorage.
+// Browser-safe publishable key only. Never put sb_secret_* here.
+// Project Settings → API Keys in the Supabase dashboard.
 window.SUPABASE_URL = "";
 window.SUPABASE_KEY = "";

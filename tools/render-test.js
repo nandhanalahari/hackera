@@ -57,7 +57,14 @@ const bundle =
     .join("\n;\n") +
   /* Top-level const is script-scoped, not a window property, in browsers too.
      The app relies on that shared scope; the test needs handles. */
-  `\n;Object.assign(window, {
+  `\n;window.Auth = {
+      isLoggedIn: () => true,
+      getAccessToken: () => null,
+      getUser: () => ({ id: "test-user", email: "test@example.com", name: "Test" }),
+      onChange: () => {},
+      init: async () => {}
+    };
+    Object.assign(window, {
       PROBLEMS, PATTERNS, PRACTICE_QUESTIONS, SD_TOPICS, state, isSolved, isAttempted,
       setChatOpen, getProblem, COMPANY_INDEX, statsFor, overallStats,
       submitForReview, setEditorValue, db, progressFor
@@ -108,7 +115,7 @@ check("design scenarios", window.SD_TOPICS.reduce((n, t) => n + t.scenarios.leng
 
 console.log("\nroutes");
 const routes = [
-  ["#/", "view-home", "home-cards"],
+  ["#/", "view-home", "home-continue"],
   ["#/practice", "view-practice", "practice-body"],
   ["#/practice/neetcode150", "view-practice", "practice-body"],
   ["#/practice/blind75", "view-practice", "practice-body"],

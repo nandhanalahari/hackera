@@ -20,7 +20,7 @@ const {
   remapCompileError,
   parseRunOutput
 } = require("./tools/harness");
-const { loadAllJobs, rankJobs, RESOURCES } = require("./tools/jobs");
+const { loadAllJobs, RESOURCES } = require("./tools/jobs");
 
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT) || 8000;
@@ -257,29 +257,19 @@ async function handleRun(req, res) {
 }
 
 /* ------------------------------------------------------------------ */
-/* /api/jobs — live tracker from public GitHub lists                   */
+/* /api/jobs — live Intern List / Jobright mini-sites feed             */
 /* ------------------------------------------------------------------ */
 
-const JOBS_TTL_MS = 15 * 60 * 1000;
+const JOBS_TTL_MS = 10 * 60 * 1000;
 let jobsCache = null;
-
-function loadResumeText() {
-  const p = path.join(ROOT, "data", "resume.txt");
-  if (fs.existsSync(p)) return fs.readFileSync(p, "utf8");
-  return "";
-}
 
 async function getJobsBundle(force = false) {
   if (!force && jobsCache && Date.now() - jobsCache.at < JOBS_TTL_MS) return jobsCache.data;
   const data = await loadAllJobs();
-  const resume = loadResumeText();
-  const ranked = resume ? rankJobs(data.jobs, resume) : data.jobs.map((j) => ({ ...j, score: 0, reasons: [] }));
   const bundle = {
     ...data,
-    jobs: ranked,
-    resumeLoaded: !!resume.trim(),
-    resumeName: resume.trim() ? resume.split("\n")[0].trim() : null,
-    resources: RESOURCES
+    jobs: data.jobs,
+    resources: RESOURCES.filter((r) => r.kind !== "resume")
   };
   jobsCache = { at: Date.now(), data: bundle };
   return bundle;
@@ -289,54 +279,47 @@ async function handleJobs(req, res) {
   const url = new URL(req.url, "http://localhost");
   const force = url.searchParams.get("refresh") === "1";
   const kind = url.searchParams.get("kind") || "all";
+  const section = url.searchParams.get("section") || "all";
   const q = (url.searchParams.get("q") || "").toLowerCase().trim();
-  const sort = url.searchParams.get("sort") || "fit";
-  const limit = Math.min(Number(url.searchParams.get("limit")) || 200, 500);
+  const sort = url.searchParams.get("sort") || "new";
+  const limit = Math.min(Number(url.searchParams.get("limit")) || 0, 2000) || 0;
 
   const bundle = await getJobsBundle(force);
   let jobs = bundle.jobs.slice();
 
   if (kind !== "all") jobs = jobs.filter((j) => j.kind === kind);
+  if (section !== "all") jobs = jobs.filter((j) => j.section === section);
   if (q) {
     jobs = jobs.filter((j) =>
-      `${j.company} ${j.title} ${j.location} ${j.sourceLabel}`.toLowerCase().includes(q)
+      `${j.company} ${j.title} ${j.location} ${j.section} ${j.salary || ""}`.toLowerCase().includes(q)
     );
   }
 
-  if (sort === "both") {
-    const best = [...jobs].sort((a, b) => b.score - a.score || (a.ageDays ?? 999) - (b.ageDays ?? 999)).slice(0, 50);
-    const latest = [...jobs].sort((a, b) => (a.ageDays ?? 999) - (b.ageDays ?? 999) || b.score - a.score).slice(0, 50);
-    sendJson(res, 200, {
-      ok: true,
-      fetchedAt: bundle.fetchedAt,
-      resumeLoaded: bundle.resumeLoaded,
-      resumeName: bundle.resumeName,
-      resources: bundle.resources,
-      sources: bundle.sources,
-      errors: bundle.errors,
-      sort: "both",
-      total: jobs.length,
-      best,
-      latest,
-      jobs: best
-    });
-    return;
+  if (sort === "company") {
+    jobs.sort(
+      (a, b) =>
+        a.company.localeCompare(b.company) || (b.postedAt || 0) - (a.postedAt || 0)
+    );
+  } else {
+    jobs.sort(
+      (a, b) =>
+        (b.postedAt || 0) - (a.postedAt || 0) || a.company.localeCompare(b.company)
+    );
   }
 
-  if (sort === "new") jobs.sort((a, b) => (a.ageDays ?? 999) - (b.ageDays ?? 999) || b.score - a.score);
-  else if (sort === "company") jobs.sort((a, b) => a.company.localeCompare(b.company) || b.score - a.score);
-  else jobs.sort((a, b) => b.score - a.score || (a.ageDays ?? 999) - (b.ageDays ?? 999));
+  const total = jobs.length;
+  if (limit > 0) jobs = jobs.slice(0, limit);
 
   sendJson(res, 200, {
     ok: true,
     fetchedAt: bundle.fetchedAt,
-    resumeLoaded: bundle.resumeLoaded,
-    resumeName: bundle.resumeName,
+    provider: bundle.provider || "intern-list",
+    openingsHint: bundle.openingsHint || null,
     resources: bundle.resources,
     sources: bundle.sources,
     errors: bundle.errors,
-    total: jobs.length,
-    jobs: jobs.slice(0, limit)
+    total,
+    jobs
   });
 }
 
@@ -373,5 +356,5 @@ server.listen(PORT, () => {
   console.log(`Hackera running at http://localhost:${PORT}`);
   console.log(`  Java : ${JAVA}`);
   console.log(`  Run  : ${runnable}/${PROBLEMS.length} problems supported`);
-  console.log(`  Jobs : /api/jobs (resume ${loadResumeText().trim() ? "loaded" : "missing"})`);
+  console.log(`  Jobs : /api/jobs (latest postings)`);
 });

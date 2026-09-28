@@ -2,13 +2,29 @@
 
 /* System design judgment drills — render + progress wiring. */
 
+function sdCourse(topic) {
+  if (topic.course && topic.course.length) return topic.course;
+  return topic.scenarios.map((sc) => ({
+    id: sc.id,
+    title: sc.title,
+    teach: sc.axis,
+    points: sc.constraints,
+    check: sc.id
+  }));
+}
+
+function sdCheckDone(topicId, scenarioId) {
+  return !!state.designProgress?.[sdScenarioKey(topicId, scenarioId)]?.completed;
+}
+
 function renderDesign() {
   const s = sdStats();
-  $("design-count").textContent = `${s.done} / ${s.total} decisions practiced`;
+  $("design-count").textContent = `${s.done} / ${s.total} checks done`;
   $("design-bar").style.width = pct(s.done, s.total) + "%";
 
-  $("design-body").innerHTML = SD_TOPICS.map((t, i) => {
-    const done = t.scenarios.filter((sc) => state.designProgress[sdScenarioKey(t.id, sc.id)]?.completed).length;
+  $("design-body").innerHTML = SD_TOPICS.map((t) => {
+    const done = t.scenarios.filter((sc) => sdCheckDone(t.id, sc.id)).length;
+    const course = sdCourse(t);
     return `<section class="sd-topic${done === t.scenarios.length ? " complete" : ""}">
       <header class="sd-topic-head">
         <span class="sd-icon">${t.icon}</span>
@@ -21,16 +37,25 @@ function renderDesign() {
           <span class="muted mono">${done}/${t.scenarios.length}</span>
         </div>
       </header>
-      <div class="sd-scenario-list">
-        ${t.scenarios
-          .map(
-            (sc) => `<a class="sd-scenario-row" href="#/design/${encodeURIComponent(t.id)}/${encodeURIComponent(sc.id)}">
-              ${state.designProgress[sdScenarioKey(t.id, sc.id)]?.completed ? '<span class="tick done">✓</span>' : '<span class="tick">○</span>'}
-              <span class="rname">${escapeHtml(sc.title)}</span>
-            </a>`
-          )
+      <ol class="sd-tree sd-tree-index">
+        ${course
+          .map((node) => {
+            const sc = t.scenarios.find((x) => x.id === node.check);
+            const href = `#/design/${encodeURIComponent(t.id)}`;
+            return `<li>
+              <a class="sd-branch-link" href="${href}">
+                <span class="sd-badge">Learn</span>
+                <span class="rname">${escapeHtml(node.title)}</span>
+              </a>
+              ${
+                sc
+                  ? `<span class="sd-branch-check muted">${sdCheckDone(t.id, sc.id) ? "✓" : "○"} then check · ${escapeHtml(sc.title)}</span>`
+                  : ""
+              }
+            </li>`;
+          })
           .join("")}
-      </div>
+      </ol>
     </section>`;
   }).join("");
 
@@ -42,19 +67,51 @@ function renderDesignTopic() {
   if (!t) return go("#/design");
 
   $("design-topic-title").textContent = t.name;
-  $("design-topic-sub").textContent = t.summary;
-  $("design-topic-scenarios").innerHTML = t.scenarios
-    .map(
-      (sc, i) => `<a class="card compact sd-card" href="#/design/${encodeURIComponent(t.id)}/${encodeURIComponent(sc.id)}">
-        <span class="kicker">Decision ${i + 1}</span>
-        <h3>${escapeHtml(sc.title)}</h3>
-        <p>${escapeHtml(sc.prompt)}</p>
-        <div class="card-foot">
-          ${state.designProgress[sdScenarioKey(t.id, sc.id)]?.completed ? '<span class="badge solved">Done</span>' : '<span class="go">Practice →</span>'}
-        </div>
-      </a>`
-    )
-    .join("");
+  $("design-topic-sub").textContent = "Read each branch, then answer the check underneath it.";
+  const course = sdCourse(t);
+
+  $("design-topic-scenarios").innerHTML = `<p class="sd-topic-lead">${escapeHtml(t.summary)}</p>
+    <ol class="sd-tree">
+      ${course
+        .map((node) => {
+          const sc = t.scenarios.find((x) => x.id === node.check);
+          const done = sc && sdCheckDone(t.id, sc.id);
+          const paras = String(node.teach || "")
+            .split(/\n\n/)
+            .filter(Boolean)
+            .map((p) => `<p>${escapeHtml(p)}</p>`)
+            .join("");
+          return `<li class="sd-branch" id="learn-${escapeHtml(node.id)}">
+            <article class="sd-node">
+              <span class="sd-badge">Learn</span>
+              <h3>${escapeHtml(node.title)}</h3>
+              ${paras}
+              ${
+                node.points && node.points.length
+                  ? `<ul class="sd-points">${node.points.map((p) => `<li>${escapeHtml(p)}</li>`).join("")}</ul>`
+                  : ""
+              }
+            </article>
+            ${
+              sc
+                ? `<ul class="sd-tree">
+                    <li>
+                      <a class="sd-check${done ? " done" : ""}" href="#/design/${encodeURIComponent(t.id)}/${encodeURIComponent(sc.id)}">
+                        <span class="sd-badge check">${done ? "Done" : "Check"}</span>
+                        <span>
+                          <strong>${escapeHtml(sc.title)}</strong>
+                          <em>${escapeHtml(sc.prompt)}</em>
+                        </span>
+                        <span class="go">${done ? "Review" : "Answer"} →</span>
+                      </a>
+                    </li>
+                  </ul>`
+                : ""
+            }
+          </li>`;
+        })
+        .join("")}
+    </ol>`;
 
   document.title = `${t.name} - Hackera`;
 }
@@ -73,7 +130,17 @@ function renderDesignDrill() {
   $("design-drill-title").textContent = sc.title;
   $("design-drill-kicker").textContent = t.name;
 
+  const lesson = sdCourse(t).find((n) => n.check === sc.id);
+  const lessonRecap = lesson
+    ? `<div class="sd-recap">
+        <h4>From the lesson · ${escapeHtml(lesson.title)}</h4>
+        <p>${escapeHtml(String(lesson.teach || "").split(/\n\n/)[0])}</p>
+        <a class="back" href="#/design/${encodeURIComponent(t.id)}">← Reread the full branch</a>
+      </div>`
+    : "";
+
   $("design-drill-body").innerHTML = `
+    ${lessonRecap}
     <div class="sd-constraints">
       <h4>Constraints on screen</h4>
       <ul>${sc.constraints.map((c) => `<li>${escapeHtml(c)}</li>`).join("")}</ul>

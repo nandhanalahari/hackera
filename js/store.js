@@ -46,13 +46,47 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
-/* A stable per-device id, since the tool has no accounts. */
-let userKey = load(KEYS.user, null);
-if (!userKey) {
-  userKey =
+/* Guest id for local-only use. Signed-in users switch to auth.uid(). */
+let guestKey = load(KEYS.user, null);
+if (!guestKey) {
+  guestKey =
     (crypto.randomUUID && crypto.randomUUID()) ||
     "u-" + Math.random().toString(36).slice(2) + Date.now().toString(36);
-  save(KEYS.user, userKey);
+  save(KEYS.user, guestKey);
+}
+let userKey = guestKey;
+
+function scopedKey(base) {
+  if (!userKey || userKey === guestKey) return base;
+  return `${base}.${userKey}`;
+}
+
+function loadScoped(base, fallback) {
+  return load(scopedKey(base), fallback);
+}
+
+function saveScoped(base, value) {
+  save(scopedKey(base), value);
+}
+
+function reloadScopedState() {
+  state.progress = loadScoped(KEYS.progress, {});
+  state.code = loadScoped(KEYS.code, {});
+  state.reviews = loadScoped(KEYS.reviews, {});
+  state.bank = loadScoped(KEYS.bank, []);
+  state.chat = loadScoped(KEYS.chat, []);
+  state.learning = loadScoped(KEYS.learning, {});
+  state.designProgress = loadScoped(KEYS.designProgress, {});
+  state.activity = load(scopedKey("oa.activity"), state.activity || {});
+  state.synced = false;
+}
+
+function setActiveUserKey(nextKey) {
+  const key = nextKey || guestKey;
+  if (key === userKey) return false;
+  userKey = key;
+  reloadScopedState();
+  return true;
 }
 
 /* ------------------------------------------------------------------ */
@@ -93,16 +127,16 @@ const state = {
 };
 
 const persist = {
-  progress: () => save(KEYS.progress, state.progress),
-  code: () => save(KEYS.code, state.code),
-  reviews: () => save(KEYS.reviews, state.reviews),
-  bank: () => save(KEYS.bank, state.bank),
-  chat: () => save(KEYS.chat, state.chat),
+  progress: () => saveScoped(KEYS.progress, state.progress),
+  code: () => saveScoped(KEYS.code, state.code),
+  reviews: () => saveScoped(KEYS.reviews, state.reviews),
+  bank: () => saveScoped(KEYS.bank, state.bank),
+  chat: () => saveScoped(KEYS.chat, state.chat),
   timer: () => save(KEYS.timer, state.timer),
   layout: () => save(KEYS.layout, state.layout),
   prefs: () => save(KEYS.prefs, state.prefs),
-  learning: () => save(KEYS.learning, state.learning),
-  designProgress: () => save(KEYS.designProgress, state.designProgress)
+  learning: () => saveScoped(KEYS.learning, state.learning),
+  designProgress: () => saveScoped(KEYS.designProgress, state.designProgress)
 };
 
 /* ------------------------------------------------------------------ */
@@ -208,17 +242,23 @@ const db = {
 
   async req(path, opts = {}) {
     if (!this.enabled) return null;
+    const token =
+      (typeof Auth !== "undefined" && Auth.getAccessToken && Auth.getAccessToken()) || this.key;
     const res = await fetch(`${this.url}/rest/v1/${path}`, {
       ...opts,
       headers: {
         apikey: this.key,
-        Authorization: `Bearer ${this.key}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
         ...(opts.headers || {})
       }
     });
     if (!res.ok) throw new Error(`Supabase ${res.status}: ${await res.text()}`);
     return res.status === 204 ? null : res.json();
+  },
+
+  get canSync() {
+    return this.enabled && typeof Auth !== "undefined" && Auth.isLoggedIn && Auth.isLoggedIn();
   },
 
   /* Every write is best-effort. Losing the network must never cost you the
@@ -243,6 +283,7 @@ const db = {
   },
 
   async saveAttempt({ key, title, section, code }) {
+    if (!this.canSync) return null;
     const rows = await this.safe(() =>
       this.req("oa_attempts", {
         method: "POST",
@@ -260,6 +301,7 @@ const db = {
   },
 
   async saveReview(attemptId, key, review) {
+    if (!this.canSync) return null;
     return this.safe(() =>
       this.req("oa_reviews", {
         method: "POST",
@@ -282,6 +324,7 @@ const db = {
   },
 
   async upsertProgress(key, p) {
+    if (!this.canSync) return null;
     return this.safe(() =>
       this.req("oa_progress", {
         method: "POST",
@@ -301,12 +344,14 @@ const db = {
   },
 
   async loadProgress() {
+    if (!this.canSync) return null;
     return this.safe(() =>
       this.req(`oa_progress?user_key=eq.${encodeURIComponent(userKey)}&select=*`)
     );
   },
 
   async loadReviews(limit = 200) {
+    if (!this.canSync) return null;
     return this.safe(() =>
       this.req(
         `oa_reviews?user_key=eq.${encodeURIComponent(userKey)}&select=*&order=created_at.desc&limit=${limit}`
@@ -314,6 +359,18 @@ const db = {
     );
   }
 };
+
+async function applyAuthUser(user) {
+  const switched = setActiveUserKey(user?.id || null);
+  if (switched && typeof navigate === "function") navigate();
+  if (user) {
+    const ok = await syncFromDb();
+    if (ok && typeof navigate === "function") navigate();
+    if (typeof renderSyncBadge === "function") renderSyncBadge();
+  } else if (typeof renderSyncBadge === "function") {
+    renderSyncBadge();
+  }
+}
 
 /* Pull the durable copy back in. Remote wins only where it is strictly ahead,
    so a fresh browser recovers history without clobbering unsynced local work. */
