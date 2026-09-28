@@ -29,7 +29,7 @@ const REVIEW_SCHEMA = {
   type: "object",
   properties: {
     verdict: { type: "string", enum: ["correct", "almost", "incorrect"] },
-    score: { type: "integer" },
+    score: { type: "integer", description: "Integer from 0 to 100. 90-100 optimal and correct, 70-89 correct but suboptimal, 40-69 right idea with a bug, 0-39 wrong." },
     time: { type: "string" },
     space: { type: "string" },
     optimal: { type: "boolean" },
@@ -114,47 +114,59 @@ function problemContext(problem) {
   return lines.join("\n");
 }
 
+function reviewGeneration(structured) {
+  const generationConfig = {
+    temperature: 0.2,
+    maxOutputTokens: 8192,
+    // Gemini 2.5 spends the output budget on hidden reasoning. A truncated
+    // review then arrives as a fragment with no JSON object.
+    thinkingConfig: { thinkingBudget: 0 }
+  };
+  if (structured) {
+    generationConfig.responseMimeType = "application/json";
+    generationConfig.responseSchema = REVIEW_SCHEMA;
+  }
+  return generationConfig;
+}
+
 async function reviewSolution(problem, code) {
   const prompt =
     `${problemContext(problem)}\n\n--- CANDIDATE'S JAVA SOLUTION ---\n${code}\n\n` +
-    `Grade this solution against the problem above.`;
+    `Grade this solution against the problem above. The score field is an integer from 0 to 100, not a 10-point scale.`;
+  const contents = [{ role: "user", parts: [{ text: prompt }] }];
+  const systemInstruction = { parts: [{ text: REVIEW_SYSTEM }] };
 
-  let text;
   try {
-    text = await geminiCall({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      systemInstruction: { parts: [{ text: REVIEW_SYSTEM }] },
-      generationConfig: {
-        temperature: 0.2,
-        maxOutputTokens: 3072,
-        responseMimeType: "application/json",
-        responseSchema: REVIEW_SCHEMA
-      }
+    const text = await geminiCall({
+      contents,
+      systemInstruction,
+      generationConfig: reviewGeneration(true)
     });
-  } catch (err) {
-    // Older or restricted models reject responseSchema; ask for JSON in words.
-    text = await geminiCall({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text:
-                prompt +
-                `\n\nRespond with ONLY a JSON object, no markdown fence, matching:\n` +
-                `{"verdict":"correct|almost|incorrect","score":0-100,"time":"O(..)","space":"O(..)",` +
-                `"optimal":true,"summary":"..","strengths":[".."],` +
-                `"improvements":[{"title":"..","detail":"..","severity":"bug|edge-case|performance|style"}],` +
-                `"edgeCases":[".."],"resources":[{"title":"..","url":"..","why":".."}]}`
-            }
-          ]
-        }
-      ],
-      systemInstruction: { parts: [{ text: REVIEW_SYSTEM }] },
-      generationConfig: { temperature: 0.2, maxOutputTokens: 3072 }
-    });
+    return parseReview(text);
+  } catch {
+    /* responseSchema is rejected by some models; ask for the same object in prose. */
   }
 
+  const text = await geminiCall({
+    contents: [
+      {
+        role: "user",
+        parts: [
+          {
+            text:
+              prompt +
+              `\n\nRespond with ONLY a JSON object, no markdown fence, matching:\n` +
+              `{"verdict":"correct|almost|incorrect","score":0-100,"time":"O(..)","space":"O(..)",` +
+              `"optimal":true,"summary":"..","strengths":[".."],` +
+              `"improvements":[{"title":"..","detail":"..","severity":"bug|edge-case|performance|style"}],` +
+              `"edgeCases":[".."],"resources":[{"title":"..","url":"..","why":".."}]}`
+          }
+        ]
+      }
+    ],
+    systemInstruction,
+    generationConfig: reviewGeneration(false)
+  });
   return parseReview(text);
 }
 
@@ -178,19 +190,98 @@ function trustedResources(list) {
   });
 }
 
-function parseReview(text) {
-  let raw = text.trim();
-  const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fence) raw = fence[1].trim();
+function tryParseJson(value) {
+  const attempts = [value, String(value).replace(/,\s*([}\]])/g, "$1")];
+  for (const attempt of attempts) {
+    try {
+      let parsed = JSON.parse(attempt);
+      if (typeof parsed === "string") {
+        try {
+          parsed = JSON.parse(parsed);
+        } catch {
+          /* keep the string */
+        }
+      }
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+    } catch {
+      /* try the next spelling */
+    }
+  }
+  return null;
+}
 
-  let obj;
-  try {
-    obj = JSON.parse(raw);
-  } catch {
-    const start = raw.indexOf("{");
-    const end = raw.lastIndexOf("}");
-    if (start === -1 || end <= start) throw new Error("Could not parse the review as JSON.");
-    obj = JSON.parse(raw.slice(start, end + 1));
+function objectAt(text, start) {
+  if (text[start] !== "{") return "";
+  let depth = 0;
+  let quote = false;
+  let escape = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (quote) {
+      if (escape) escape = false;
+      else if (ch === "\\") escape = true;
+      else if (ch === '"') quote = false;
+      continue;
+    }
+    if (ch === '"') quote = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return "";
+}
+
+function jsonObjects(text) {
+  const found = [];
+  let quote = false;
+  let escape = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quote) {
+      if (escape) escape = false;
+      else if (ch === "\\") escape = true;
+      else if (ch === '"') quote = false;
+      continue;
+    }
+    if (ch === '"') {
+      quote = true;
+      continue;
+    }
+    if (ch !== "{") continue;
+    const slice = objectAt(text, i);
+    if (!slice) continue;
+    found.push(slice);
+    i += slice.length - 1;
+  }
+  return found;
+}
+
+function parseReview(text) {
+  const raw = String(text || "").trim();
+  const candidates = [raw, raw.replace(/```(?:json)?/gi, "")];
+  const fence = /```(?:json)?\s*([\s\S]*?)```/gi;
+  let match;
+  while ((match = fence.exec(raw))) candidates.push(match[1].trim());
+
+  let obj = null;
+  for (const candidate of candidates) {
+    const spans = [candidate, ...jsonObjects(candidate)];
+    for (const span of spans) {
+      const parsed = tryParseJson(span);
+      if (!parsed) continue;
+      if ("verdict" in parsed || "score" in parsed || "summary" in parsed) {
+        obj = parsed;
+        break;
+      }
+      obj = obj || parsed;
+    }
+    if (obj && ("verdict" in obj || "score" in obj || "summary" in obj)) break;
+  }
+  if (!obj) {
+    const preview = raw.replace(/\s+/g, " ").slice(0, 160);
+    throw new Error(preview ? "Could not parse the review as JSON. " + preview : "Could not parse the review as JSON.");
   }
 
   return {
