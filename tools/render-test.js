@@ -274,12 +274,11 @@ check("second hint still gated", !$("tab-hint").innerHTML.includes("Hint 2"));
   window.fetch = (url, opts = {}) => {
     calls.push({ url: String(url), body: opts.body ? JSON.parse(opts.body) : null });
 
-    if (String(url).includes("generativelanguage")) {
+    if (String(url).includes("/api/coach")) {
       return Promise.resolve({
         ok: true,
         status: 200,
-        json: () =>
-          Promise.resolve({ candidates: [{ content: { parts: [{ text: JSON.stringify(fakeReview) }] } }] })
+        json: () => Promise.resolve({ text: JSON.stringify(fakeReview) })
       });
     }
     const rows = String(url).includes("oa_attempts") ? [{ id: "attempt-1" }] : [];
@@ -298,7 +297,7 @@ check("second hint still gated", !$("tab-hint").innerHTML.includes("Hint 2"));
   check("attempt carries the code", !!attempt && attempt.body.code.includes("real attempt"));
   check("attempt carries the slug", !!attempt && attempt.body.problem_slug === "two-sum");
 
-  const graded = calls.find((c) => c.url.includes("generativelanguage"));
+  const graded = calls.find((c) => String(c.url).includes("/api/coach"));
   check("solution sent to Gemini", !!graded);
   check(
     "prompt includes the problem text",

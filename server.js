@@ -21,6 +21,7 @@ const {
   parseRunOutput
 } = require("./tools/harness");
 const { getJobsBundle, queryJobs } = require("./tools/jobs");
+const { generateContent } = require("./tools/gemini");
 
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT) || 8000;
@@ -260,7 +261,17 @@ async function handleRun(req, res) {
 /* /api/jobs — live Intern List / Jobright mini-sites feed             */
 /* ------------------------------------------------------------------ */
 
-async function handleJobs(req, res) {
+async function handleCoach(req, res) {
+  const raw = await readBody(req);
+  let body = {};
+  try {
+    body = raw ? JSON.parse(raw) : {};
+  } catch {
+    return sendJson(res, 400, { ok: false, error: "Invalid JSON" });
+  }
+  const text = await generateContent(body);
+  sendJson(res, 200, { ok: true, text });
+}
   const url = new URL(req.url, "http://localhost");
   const query = Object.fromEntries(url.searchParams.entries());
   const bundle = await getJobsBundle(query.refresh === "1");
@@ -281,6 +292,9 @@ const server = http.createServer(async (req, res) => {
     const pathOnly = (req.url || "").split("?")[0];
     if (req.method === "POST" && pathOnly === "/api/run") {
       return await handleRun(req, res);
+    }
+    if (req.method === "POST" && pathOnly === "/api/coach") {
+      return await handleCoach(req, res);
     }
     if (req.method === "GET" && pathOnly === "/api/jobs") {
       return await handleJobs(req, res);

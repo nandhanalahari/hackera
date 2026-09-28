@@ -64,43 +64,25 @@ const REVIEW_SCHEMA = {
   required: ["verdict", "score", "time", "space", "optimal", "summary", "improvements", "resources"]
 };
 
-function apiKey() {
-  return (load(KEYS.apiKey, "") || window.GEMINI_API_KEY || "").trim();
-}
-
-function geminiUrl() {
-  const model = window.GEMINI_MODEL || "gemini-2.5-flash";
-  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey())}`;
-}
-
 async function geminiCall(body) {
-  if (!apiKey()) throw new Error("No API key. Add one in config.js or the field in the top bar.");
-
-  const res = await fetch(geminiUrl(), {
+  const res = await fetch("/api/coach", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
 
-  if (!res.ok) {
-    let detail = `HTTP ${res.status}`;
-    try {
-      const err = await res.json();
-      if (err.error && err.error.message) detail = err.error.message;
-    } catch {
-      /* keep the status-only message */
-    }
-    throw new Error(detail);
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {
+    /* non-JSON error page */
   }
 
-  const data = await res.json();
-  const parts = data?.candidates?.[0]?.content?.parts;
-  const text = Array.isArray(parts) ? parts.map((p) => p.text || "").join("").trim() : "";
-  if (!text) {
-    const reason = data?.candidates?.[0]?.finishReason || data?.promptFeedback?.blockReason;
-    throw new Error("Empty response from Gemini" + (reason ? ` (${reason})` : ""));
+  if (!res.ok) {
+    throw new Error(data.error || `HTTP ${res.status}`);
   }
-  return text;
+  if (!data.text) throw new Error("Empty response from Gemini");
+  return data.text;
 }
 
 /* ------------------------------------------------------------------ */

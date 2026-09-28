@@ -2,6 +2,9 @@
   "functions": {
     "api/jobs.js": {
       "maxDuration": 30
+    },
+    "api/coach.js": {
+      "maxDuration": 30
     }
   }
 }
