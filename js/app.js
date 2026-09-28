@@ -1060,18 +1060,37 @@ async function runCode() {
     const res = await fetch("/api/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug, code })
+      body: JSON.stringify({
+        slug,
+        code,
+        meta: problem.meta,
+        tests: problem.tests
+      })
     });
 
     let data;
     try {
       data = await res.json();
     } catch {
-      throw new Error(
-        res.status === 404
-          ? "Run API not found. Restart with: node server.js (not python -m http.server)."
-          : `Bad response from server (HTTP ${res.status})`
-      );
+      if (res.status !== 404 || !window.HackeraJava) {
+        throw new Error(
+          res.status === 404
+            ? "Run API not found. Redeploy the site so /api/run is available."
+            : `Bad response from server (HTTP ${res.status})`
+        );
+      }
+      data = { fallback: "browser" };
+    }
+
+    if (data.fallback === "browser") {
+      data = await window.HackeraJava.run({
+        code,
+        meta: problem.meta,
+        tests: problem.tests,
+        onStatus(msg) {
+          showRunPanel("Running...", `<p class="muted">${escapeHtml(msg)}</p>`);
+        }
+      });
     }
 
     if (data.stage === "compile" || (!data.ok && !data.cases?.length && data.error)) {

@@ -345,11 +345,72 @@ function buildSolution(userCode) {
 
 /* javac reports positions in the generated file; shift them back onto the
    lines the user actually typed. */
+function shiftSolutionLine(n) {
+  const line = Number(n) - IMPORT_OFFSET;
+  return line > 0 ? "Line " + line : "Solution.java:" + n;
+}
+
 function remapCompileError(stderr) {
-  return String(stderr).replace(/^Solution\.java:(\d+):/gm, (m, n) => {
-    const line = Number(n) - IMPORT_OFFSET;
-    return line > 0 ? `Line ${line}:` : m;
+  return String(stderr)
+    .replace(/\/str\/Solution\.java \(at line (\d+)\)/g, (m, n) => shiftSolutionLine(n))
+    .replace(/^Solution\.java:(\d+):/gm, (m, n) => shiftSolutionLine(n) + ":");
+}
+
+function normalize(s) {
+  return String(s || "")
+    .replace(/\s+/g, "")
+    .replace(/"/g, "'");
+}
+
+function deepEqualUnordered(a, b) {
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    const sa = a.map((x) => JSON.stringify(x)).sort();
+    const sb = b.map((x) => JSON.stringify(x)).sort();
+    return sa.every((v, i) => v === sb[i]);
+  }
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function equal(actual, expected) {
+  const a = normalize(actual);
+  const e = normalize(expected);
+  if (a === e) return true;
+  try {
+    const ja = JSON.parse(actual.replace(/'/g, '"').replace(/\bnull\b/g, "null"));
+    const je = JSON.parse(expected.replace(/'/g, '"'));
+    return deepEqualUnordered(ja, je);
+  } catch {
+    return false;
+  }
+}
+
+function gradeOutput(stdout, tests) {
+  const runs = parseRunOutput(stdout);
+  const cases = tests.map((t, i) => {
+    const r = runs[i] || { actual: "", stdout: "", error: "No output for this case", ms: 0 };
+    const hasExpected = t.expected != null && t.expected !== "";
+    const passed = !r.error && (!hasExpected || equal(r.actual, t.expected));
+    return {
+      index: i + 1,
+      args: t.args,
+      expected: t.expected,
+      actual: r.actual,
+      stdout: r.stdout,
+      error: r.error || null,
+      ms: r.ms,
+      passed,
+      custom: !hasExpected
+    };
   });
+  const passed = cases.filter((c) => c.passed).length;
+  return {
+    ok: cases.every((c) => c.passed),
+    stage: "run",
+    passed,
+    total: cases.length,
+    cases
+  };
 }
 
 function parseRunOutput(stdout) {
@@ -367,7 +428,7 @@ function parseRunOutput(stdout) {
   });
 }
 
-module.exports = {
+const harnessApi = {
   TYPES,
   supports,
   unsupportedReason,
@@ -375,5 +436,9 @@ module.exports = {
   buildSolution,
   remapCompileError,
   parseRunOutput,
+  gradeOutput,
   IMPORT_OFFSET
 };
+
+if (typeof module !== "undefined" && module.exports) module.exports = harnessApi;
+if (typeof window !== "undefined") window.HackeraHarness = harnessApi;

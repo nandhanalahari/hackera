@@ -7,29 +7,14 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
-const os = require("os");
-const { execFile } = require("child_process");
-const { promisify } = require("util");
-const execFileAsync = promisify(execFile);
 
-const {
-  supports,
-  unsupportedReason,
-  buildMain,
-  buildSolution,
-  remapCompileError,
-  parseRunOutput
-} = require("./tools/harness");
+const { supports } = require("./tools/harness");
 const { getJobsBundle, queryJobs } = require("./tools/jobs");
 const { generateContent } = require("./tools/gemini");
+const { runSolution, hasLocalJava, MAX_CODE } = require("./tools/run-code");
 
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT) || 8000;
-const JAVA_HOME = process.env.JAVA_HOME || "/opt/homebrew/opt/openjdk";
-const JAVA = path.join(JAVA_HOME, "bin", "java");
-const JAVAC = path.join(JAVA_HOME, "bin", "javac");
-const RUN_TIMEOUT_MS = 8000;
-const MAX_CODE = 80_000;
 
 /* Load problems once. The generator writes `const PROBLEMS = ...` which we
    evaluate in a sandbox so the server can look up a slug. */
@@ -50,7 +35,8 @@ const MIME = {
   ".svg": "image/svg+xml",
   ".png": "image/png",
   ".ico": "image/x-icon",
-  ".md": "text/markdown; charset=utf-8"
+  ".md": "text/markdown; charset=utf-8",
+  ".jar": "application/java-archive"
 };
 
 function send(res, status, body, headers = {}) {
@@ -100,42 +86,8 @@ function serveStatic(req, res) {
 }
 
 /* ------------------------------------------------------------------ */
-/* /api/run                                                            */
+/* /api/run, /api/coach, /api/jobs                                     */
 /* ------------------------------------------------------------------ */
-
-function normalize(s) {
-  return String(s || "")
-    .replace(/\s+/g, "")
-    .replace(/"/g, "'");
-}
-
-/* List-of-lists and permutations of equal elements are order-insensitive in
-   many problems (Group Anagrams). For everything else, exact match after
-   whitespace stripping is enough for the example cases. */
-function equal(actual, expected) {
-  const a = normalize(actual);
-  const e = normalize(expected);
-  if (a === e) return true;
-
-  try {
-    const ja = JSON.parse(actual.replace(/'/g, '"').replace(/\bnull\b/g, "null"));
-    const je = JSON.parse(expected.replace(/'/g, '"'));
-    return deepEqualUnordered(ja, je);
-  } catch {
-    return false;
-  }
-}
-
-function deepEqualUnordered(a, b) {
-  if (Array.isArray(a) && Array.isArray(b)) {
-    if (a.length !== b.length) return false;
-    // If elements are themselves arrays/objects, sort by stringified form.
-    const sa = a.map((x) => JSON.stringify(x)).sort();
-    const sb = b.map((x) => JSON.stringify(x)).sort();
-    return sa.every((v, i) => v === sb[i]);
-  }
-  return JSON.stringify(a) === JSON.stringify(b);
-}
 
 async function handleRun(req, res) {
   let body;
@@ -146,120 +98,20 @@ async function handleRun(req, res) {
   }
 
   const slug = body.slug;
-  const code = String(body.code || "");
   if (!slug || !BY_SLUG.has(slug)) return sendJson(res, 404, { ok: false, error: "Unknown problem" });
-  if (!code.trim()) return sendJson(res, 400, { ok: false, error: "Editor is empty" });
-  if (code.length > MAX_CODE) return sendJson(res, 400, { ok: false, error: "Code too large" });
-
   const problem = BY_SLUG.get(slug);
-  if (!problem.runnable || !supports(problem.meta)) {
-    return sendJson(res, 400, {
-      ok: false,
-      error: problem.notRunnable || unsupportedReason(problem.meta) || "This problem cannot be run locally"
-    });
-  }
-
   let tests = problem.tests;
   if (Array.isArray(body.custom) && body.custom.length) {
-    // Custom cases only check that they execute without crashing unless an
-    // expected value is also provided.
     tests = body.custom.map((c) => ({
       args: c.args,
       expected: c.expected == null ? null : String(c.expected)
     }));
   }
 
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "hackera-run-"));
-  try {
-    fs.writeFileSync(path.join(dir, "Solution.java"), buildSolution(code));
-    fs.writeFileSync(path.join(dir, "Main.java"), buildMain(problem.meta, tests));
-
-    try {
-      await execFileAsync(JAVAC, ["Solution.java", "Main.java"], {
-        cwd: dir,
-        timeout: RUN_TIMEOUT_MS,
-        maxBuffer: 2 * 1024 * 1024,
-        env: { ...process.env, PATH: path.join(JAVA_HOME, "bin") + ":" + (process.env.PATH || "") }
-      });
-    } catch (err) {
-      const stderr = remapCompileError(err.stderr || err.message || "");
-      return sendJson(res, 200, {
-        ok: false,
-        stage: "compile",
-        error: stderr.trim() || "Compilation failed",
-        cases: []
-      });
-    }
-
-    let stdout = "";
-    try {
-      const out = await execFileAsync(JAVA, ["Main"], {
-        cwd: dir,
-        timeout: RUN_TIMEOUT_MS,
-        maxBuffer: 4 * 1024 * 1024,
-        env: { ...process.env, PATH: path.join(JAVA_HOME, "bin") + ":" + (process.env.PATH || "") }
-      });
-      stdout = out.stdout || "";
-    } catch (err) {
-      if (err.killed || err.signal === "SIGTERM") {
-        return sendJson(res, 200, {
-          ok: false,
-          stage: "runtime",
-          error: `Timed out after ${RUN_TIMEOUT_MS / 1000}s. Check for an infinite loop.`,
-          cases: []
-        });
-      }
-      // Runtime exceptions from Main still print via <<<ERROR>>>, but a crash
-      // outside that path (e.g. OOM) lands here.
-      stdout = err.stdout || "";
-      if (!stdout) {
-        return sendJson(res, 200, {
-          ok: false,
-          stage: "runtime",
-          error: (err.stderr || err.message || "Runtime error").toString().trim(),
-          cases: []
-        });
-      }
-    }
-
-    const runs = parseRunOutput(stdout);
-    const cases = tests.map((t, i) => {
-      const r = runs[i] || { actual: "", stdout: "", error: "No output for this case", ms: 0 };
-      const hasExpected = t.expected != null && t.expected !== "";
-      const passed = !r.error && (!hasExpected || equal(r.actual, t.expected));
-      return {
-        index: i + 1,
-        args: t.args,
-        expected: t.expected,
-        actual: r.actual,
-        stdout: r.stdout,
-        error: r.error || null,
-        ms: r.ms,
-        passed,
-        custom: !hasExpected
-      };
-    });
-
-    const passed = cases.filter((c) => c.passed).length;
-    return sendJson(res, 200, {
-      ok: cases.every((c) => c.passed),
-      stage: "run",
-      passed,
-      total: cases.length,
-      cases
-    });
-  } finally {
-    try {
-      fs.rmSync(dir, { recursive: true, force: true });
-    } catch {
-      /* leave the temp dir; not worth failing the response over */
-    }
-  }
+  const result = await runSolution({ code: body.code, meta: problem.meta, tests });
+  const status = result.error && !result.stage ? 400 : 200;
+  sendJson(res, status, result);
 }
-
-/* ------------------------------------------------------------------ */
-/* /api/jobs — live Intern List / Jobright mini-sites feed             */
-/* ------------------------------------------------------------------ */
 
 async function handleCoach(req, res) {
   const raw = await readBody(req);
@@ -272,6 +124,8 @@ async function handleCoach(req, res) {
   const text = await generateContent(body);
   sendJson(res, 200, { ok: true, text });
 }
+
+async function handleJobs(req, res) {
   const url = new URL(req.url, "http://localhost");
   const query = Object.fromEntries(url.searchParams.entries());
   const bundle = await getJobsBundle(query.refresh === "1");
@@ -281,11 +135,6 @@ async function handleCoach(req, res) {
 /* ------------------------------------------------------------------ */
 /* http                                                                */
 /* ------------------------------------------------------------------ */
-
-if (!fs.existsSync(JAVA) || !fs.existsSync(JAVAC)) {
-  console.error(`Java not found at ${JAVA_HOME}. Install with: brew install openjdk`);
-  process.exit(1);
-}
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -312,7 +161,7 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   const runnable = PROBLEMS.filter((p) => p.runnable && supports(p.meta)).length;
   console.log(`Hackera running at http://localhost:${PORT}`);
-  console.log(`  Java : ${JAVA}`);
+  console.log(`  Java : ${hasLocalJava() ? "local JDK" : "in-browser runner"}`);
   console.log(`  Run  : ${runnable}/${PROBLEMS.length} problems supported`);
   console.log(`  Jobs : /api/jobs (latest postings)`);
 });
