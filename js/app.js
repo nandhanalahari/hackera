@@ -868,7 +868,7 @@ function renderSolve() {
   if (switching) hideRunPanel();
 
   renderTabs(problem);
-  applyUiTheme(state.prefs.uiTheme || "codesignal");
+  applyUiTheme(state.prefs.uiTheme || "hackerrank");
   document.title = `${problem.title} - Hackera`;
 }
 

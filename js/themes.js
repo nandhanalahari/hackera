@@ -1,6 +1,9 @@
 "use strict";
 
-/* Platform UI themes — switch the solve IDE to match CodeSignal, HackerRank, etc. */
+/* Solve IDE themes. HackerRank is the default; LeetCode is the other option. */
+
+const UI_THEME_CHOICES = ["hackerrank", "leetcode"];
+const DEFAULT_UI_THEME = "hackerrank";
 
 const UI_THEMES = {
   codesignal: {
@@ -80,13 +83,16 @@ function loadCmTheme(name) {
   });
 }
 
+function resolveUiTheme(themeId) {
+  return UI_THEME_CHOICES.includes(themeId) ? UI_THEMES[themeId] : UI_THEMES[DEFAULT_UI_THEME];
+}
+
 function currentUiTheme() {
-  const id = state.prefs.uiTheme || "codesignal";
-  return UI_THEMES[id] || UI_THEMES.codesignal;
+  return resolveUiTheme(state.prefs.uiTheme);
 }
 
 function applyUiTheme(themeId) {
-  const theme = UI_THEMES[themeId] || UI_THEMES.codesignal;
+  const theme = resolveUiTheme(themeId);
   state.prefs.uiTheme = theme.id;
   persist.prefs();
 
@@ -139,7 +145,7 @@ function applyUiTheme(themeId) {
 
 function syncUiThemeForRoute(isSolve) {
   if (isSolve) {
-    applyUiTheme(state.prefs.uiTheme || "codesignal");
+    applyUiTheme(state.prefs.uiTheme || DEFAULT_UI_THEME);
   } else {
     document.body.removeAttribute("data-ui");
     document.documentElement.removeAttribute("data-ui");
@@ -149,10 +155,10 @@ function syncUiThemeForRoute(isSolve) {
 function initUiTheme() {
   const sel = $("ui-theme");
   if (sel) {
-    sel.innerHTML = Object.values(UI_THEMES)
-      .map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`)
+    sel.innerHTML = UI_THEME_CHOICES
+      .map((id) => `<option value="${id}">${escapeHtml(UI_THEMES[id].name)}</option>`)
       .join("");
-    sel.value = state.prefs.uiTheme || "codesignal";
+    sel.value = resolveUiTheme(state.prefs.uiTheme).id;
     sel.addEventListener("change", () => applyUiTheme(sel.value));
   }
 }

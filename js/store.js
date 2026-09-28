@@ -111,7 +111,7 @@ const state = {
   layout: load(KEYS.layout, { desc: 46, chat: 380, chatOpen: false }),
   prefs: load(KEYS.prefs, {
     company: "tiktok",
-    uiTheme: "codesignal",
+    uiTheme: "hackerrank",
     companySort: "freq",
     filters: { q: "", difficulty: "all", status: "all", company: "all" },
     practiceCollapsed: {},
