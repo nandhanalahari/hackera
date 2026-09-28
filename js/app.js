@@ -589,7 +589,7 @@ async function renderJobs(opts = {}) {
 
   try {
     const res = await fetch("/api/jobs?" + params.toString());
-    if (!res.ok) throw new Error(`HTTP ${res.status}. Is node server.js running?`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     jobsState.last = data;
     paintJobs(data);

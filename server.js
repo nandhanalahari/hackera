@@ -20,7 +20,7 @@ const {
   remapCompileError,
   parseRunOutput
 } = require("./tools/harness");
-const { loadAllJobs, RESOURCES } = require("./tools/jobs");
+const { getJobsBundle, queryJobs } = require("./tools/jobs");
 
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT) || 8000;
@@ -260,67 +260,11 @@ async function handleRun(req, res) {
 /* /api/jobs — live Intern List / Jobright mini-sites feed             */
 /* ------------------------------------------------------------------ */
 
-const JOBS_TTL_MS = 10 * 60 * 1000;
-let jobsCache = null;
-
-async function getJobsBundle(force = false) {
-  if (!force && jobsCache && Date.now() - jobsCache.at < JOBS_TTL_MS) return jobsCache.data;
-  const data = await loadAllJobs();
-  const bundle = {
-    ...data,
-    jobs: data.jobs,
-    resources: RESOURCES.filter((r) => r.kind !== "resume")
-  };
-  jobsCache = { at: Date.now(), data: bundle };
-  return bundle;
-}
-
 async function handleJobs(req, res) {
   const url = new URL(req.url, "http://localhost");
-  const force = url.searchParams.get("refresh") === "1";
-  const kind = url.searchParams.get("kind") || "all";
-  const section = url.searchParams.get("section") || "all";
-  const q = (url.searchParams.get("q") || "").toLowerCase().trim();
-  const sort = url.searchParams.get("sort") || "new";
-  const limit = Math.min(Number(url.searchParams.get("limit")) || 0, 2000) || 0;
-
-  const bundle = await getJobsBundle(force);
-  let jobs = bundle.jobs.slice();
-
-  if (kind !== "all") jobs = jobs.filter((j) => j.kind === kind);
-  if (section !== "all") jobs = jobs.filter((j) => j.section === section);
-  if (q) {
-    jobs = jobs.filter((j) =>
-      `${j.company} ${j.title} ${j.location} ${j.section} ${j.salary || ""}`.toLowerCase().includes(q)
-    );
-  }
-
-  if (sort === "company") {
-    jobs.sort(
-      (a, b) =>
-        a.company.localeCompare(b.company) || (b.postedAt || 0) - (a.postedAt || 0)
-    );
-  } else {
-    jobs.sort(
-      (a, b) =>
-        (b.postedAt || 0) - (a.postedAt || 0) || a.company.localeCompare(b.company)
-    );
-  }
-
-  const total = jobs.length;
-  if (limit > 0) jobs = jobs.slice(0, limit);
-
-  sendJson(res, 200, {
-    ok: true,
-    fetchedAt: bundle.fetchedAt,
-    provider: bundle.provider || "intern-list",
-    openingsHint: bundle.openingsHint || null,
-    resources: bundle.resources,
-    sources: bundle.sources,
-    errors: bundle.errors,
-    total,
-    jobs
-  });
+  const query = Object.fromEntries(url.searchParams.entries());
+  const bundle = await getJobsBundle(query.refresh === "1");
+  sendJson(res, 200, queryJobs(bundle, query));
 }
 
 /* ------------------------------------------------------------------ */

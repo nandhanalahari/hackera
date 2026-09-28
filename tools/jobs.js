@@ -175,10 +175,60 @@ async function loadAllJobs() {
   };
 }
 
+const JOBS_TTL_MS = 10 * 60 * 1000;
+let jobsCache = null;
+
+async function getJobsBundle(force = false) {
+  if (!force && jobsCache && Date.now() - jobsCache.at < JOBS_TTL_MS) return jobsCache.data;
+  const data = await loadAllJobs();
+  jobsCache = { at: Date.now(), data };
+  return data;
+}
+
+function queryJobs(bundle, query) {
+  const kind = query.kind || "all";
+  const section = query.section || "all";
+  const q = String(query.q || "").toLowerCase().trim();
+  const sort = query.sort || "new";
+  const limit = Math.min(Number(query.limit) || 0, 2000) || 0;
+
+  let jobs = (bundle.jobs || []).slice();
+  if (kind !== "all") jobs = jobs.filter((j) => j.kind === kind);
+  if (section !== "all") jobs = jobs.filter((j) => j.section === section);
+  if (q) {
+    jobs = jobs.filter((j) =>
+      `${j.company} ${j.title} ${j.location} ${j.section} ${j.salary || ""}`.toLowerCase().includes(q)
+    );
+  }
+
+  if (sort === "company") {
+    jobs.sort((a, b) => a.company.localeCompare(b.company) || (b.postedAt || 0) - (a.postedAt || 0));
+  } else {
+    jobs.sort((a, b) => (b.postedAt || 0) - (a.postedAt || 0) || a.company.localeCompare(b.company));
+  }
+
+  const total = jobs.length;
+  if (limit > 0) jobs = jobs.slice(0, limit);
+
+  return {
+    ok: true,
+    fetchedAt: bundle.fetchedAt,
+    provider: bundle.provider || "intern-list",
+    openingsHint: bundle.openingsHint || null,
+    resources: (bundle.resources || RESOURCES).filter((r) => r.kind !== "resume"),
+    sources: bundle.sources,
+    errors: bundle.errors,
+    total,
+    jobs
+  };
+}
+
 module.exports = {
   FEEDS,
   RESOURCES,
   loadAllJobs,
+  getJobsBundle,
+  queryJobs,
   formatAge,
   ageDays
 };
