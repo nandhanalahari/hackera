@@ -1,6 +1,8 @@
 "use strict";
 
 /* ------------------------------------------------------------------ */
+window.currentLang = localStorage.getItem("hackera-lang") || "java";
+
 /* router                                                              */
 /* ------------------------------------------------------------------ */
 
@@ -856,7 +858,7 @@ function renderSolve() {
   $("q-companies").innerHTML = companyChips(problem.companies, 8);
   $("q-prompt").innerHTML = problem.html;
 
-  setEditorValue(getCode(problem.key) ?? problem.starter);
+  setEditorValue(getCode(problem.key) ?? (problem[`${window.currentLang}Starter`] || problem.javaStarter));
   $("q-solved").checked = isSolved(problem.key);
   $("q-saved").textContent = "";
 
@@ -1063,6 +1065,7 @@ async function runCode() {
       body: JSON.stringify({
         slug,
         code,
+        language: window.currentLang,
         meta: problem.meta,
         tests: problem.tests
       })
@@ -1083,6 +1086,9 @@ async function runCode() {
     }
 
     if (data.fallback === "browser") {
+      if (window.currentLang !== 'java') {
+        throw new Error("Local/browser fallback is only available for Java. Ensure server API is running.");
+      }
       data = await window.HackeraJava.run({
         code,
         meta: problem.meta,
@@ -1462,10 +1468,24 @@ function init() {
   $("code-reset").addEventListener("click", () => {
     const p = getProblem(currentKey);
     if (p && confirm("Discard your code and restore the starter?")) {
-      setEditorValue(p.starter);
-      setCode(p.key, p.starter);
+      const starter = p[`${window.currentLang}Starter`] || p.javaStarter;
+      setEditorValue(starter);
+      setCode(p.key, starter);
     }
   });
+
+  const langSelect = $("lang-select");
+  if (langSelect) {
+    langSelect.value = window.currentLang;
+    langSelect.addEventListener("change", (e) => {
+      window.currentLang = e.target.value;
+      localStorage.setItem("hackera-lang", window.currentLang);
+      const p = getProblem(currentKey);
+      if (p) {
+        setEditorValue(getCode(p.key) ?? (p[`${window.currentLang}Starter`] || p.javaStarter));
+      }
+    });
+  }
   if (!cm) $("q-code").addEventListener("input", autosaveCode);
 
   document.querySelectorAll(".ptab").forEach((b) => {

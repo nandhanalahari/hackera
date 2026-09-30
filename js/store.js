@@ -215,15 +215,17 @@ function bumpBestScore(key, score) {
   persist.progress();
 }
 
-function getCode(key) {
+function getCode(key, lang = window.currentLang || 'java') {
+  const postfix = lang === 'java' ? '' : ':' + lang;
   for (const k of relatedKeys(key)) {
-    if (state.code[k] != null && state.code[k] !== "") return state.code[k];
+    if (state.code[k + postfix] != null && state.code[k + postfix] !== "") return state.code[k + postfix];
   }
-  return state.code[key];
+  return state.code[key + postfix];
 }
 
-function setCode(key, code) {
-  for (const k of relatedKeys(key)) state.code[k] = code;
+function setCode(key, code, lang = window.currentLang || 'java') {
+  const postfix = lang === 'java' ? '' : ':' + lang;
+  for (const k of relatedKeys(key)) state.code[k + postfix] = code;
   persist.code();
 }
 

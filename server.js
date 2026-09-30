@@ -138,7 +138,7 @@ async function handleRun(req, res) {
     }));
   }
 
-  const result = await runSolution({ code: body.code, meta: problem.meta, tests });
+  const result = await runSolution({ code: body.code, language: body.language || 'java', meta: problem.meta, tests });
   const status = result.error && !result.stage ? 400 : 200;
   sendJson(res, status, result);
 }

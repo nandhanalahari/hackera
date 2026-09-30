@@ -115,11 +115,11 @@ async function runLocal(solution, main) {
   }
 }
 
-async function runSolution({ code, meta, tests }) {
+async function runSolution({ code, language, meta, tests }) {
   const source = String(code || "");
   if (!source.trim()) return { ok: false, error: "Editor is empty" };
   if (source.length > MAX_CODE) return { ok: false, error: "Code too large" };
-  if (!hasLocalJava()) return { ok: false, fallback: "browser" };
+  if (language === 'java' && !hasLocalJava()) return { ok: false, fallback: "browser" };
 
   const cleanMeta = sanitizeMeta(meta);
   if (!cleanMeta) {
@@ -128,9 +128,30 @@ async function runSolution({ code, meta, tests }) {
   const cleanTests = sanitizeTests(tests);
   if (!cleanTests) return { ok: false, error: "This problem has no runnable tests" };
 
-  const solution = buildSolution(source);
-  const main = buildMain(cleanMeta, cleanTests);
-  const ran = await runLocal(solution, main);
+  let ran;
+  if (language === 'python' || language === 'cpp') {
+    const { runWandbox } = require('./wandbox');
+    let main, compiler;
+    if (language === 'python') {
+      const { buildPythonMain } = require('./harness-python');
+      main = buildPythonMain(cleanMeta, cleanTests, source);
+      compiler = 'cpython-3.10.15';
+    } else {
+      const { buildCppMain } = require('./harness-cpp');
+      main = buildCppMain(cleanMeta, cleanTests, source);
+      compiler = 'gcc-13.2.0-c'; // actually wait, 'gcc-13.2.0' is for C++ on wandbox? Or gcc-13.2.0? I checked it was 'gcc-13.2.0'
+    }
+    const apiRes = await runWandbox(compiler === 'gcc-13.2.0-c' ? 'gcc-13.2.0' : compiler, main);
+    if (apiRes.status !== '0' && apiRes.compiler_error) {
+       return { ok: false, stage: 'compile', error: apiRes.compiler_error, cases: [] };
+    }
+    ran = { stdout: apiRes.program_output || "" };
+  } else {
+    const solution = buildSolution(source);
+    const main = buildMain(cleanMeta, cleanTests);
+    ran = await runLocal(solution, main);
+  }
+  
   if (ran.stage) return ran;
   return gradeOutput(ran.stdout || "", cleanTests);
 }

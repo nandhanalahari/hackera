@@ -257,6 +257,8 @@ function invert(listObj) {
     }
 
     const java = (q.codeSnippets || []).find((c) => c.lang === "Java");
+    const python = (q.codeSnippets || []).find((c) => c.lang === "Python3" || c.lang === "Python");
+    const cpp = (q.codeSnippets || []).find((c) => c.lang === "C++");
     const fallback = PREMIUM[slug] || {};
     const companies = Object.entries(tags[slug] || {})
       .map(([name, v]) => ({ name, freq: v.freq, recent: v.recent }))
@@ -275,6 +277,8 @@ function invert(listObj) {
       topics: (q.topicTags || []).map((t) => t.name),
       content,
       java: (java && java.code) || fallback.java || "",
+      python: (python && python.code) || fallback.python || "",
+      cpp: (cpp && cpp.code) || fallback.cpp || "",
       hints: q.hints || [],
       companies,
       meta,

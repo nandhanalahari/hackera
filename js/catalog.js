@@ -75,9 +75,15 @@ function lcProblem(slug) {
       p.content ||
       `<p class="muted">Full statement not available locally${p.paid ? " (LeetCode Premium)" : ""}. ` +
         `<a href="https://leetcode.com/problems/${p.slug}/" target="_blank" rel="noopener">Open on LeetCode ↗</a></p>`,
-    starter:
+    javaStarter:
       p.java ||
       `// Starter not available locally. See https://leetcode.com/problems/${p.slug}/\npublic class Solution {\n}\n`,
+    pythonStarter:
+      p.python ||
+      `# Starter not available locally. See https://leetcode.com/problems/${p.slug}/\nclass Solution:\n    pass\n`,
+    cppStarter:
+      p.cpp ||
+      `// Starter not available locally. See https://leetcode.com/problems/${p.slug}/\nclass Solution {\n};\n`,
     hints: p.hints,
     topics: p.topics,
     companies: p.companies,
@@ -111,7 +117,9 @@ function learnProblem(id) {
     difficulty: q.difficulty,
     acRate: lc ? lc.acRate : null,
     html: "<p>" + escapeHtml(q.prompt).replace(/\n\n/g, "</p><p>").replace(/\n/g, "<br>") + "</p>",
-    starter: q.starter,
+    javaStarter: q.starter,
+    pythonStarter: q.starter,
+    cppStarter: q.starter,
     hints: q.hint ? [q.hint] : [],
     topics: pattern ? [pattern.name] : [],
     companies: q.lc ? lcCompaniesByNumber(q.lc) : [],
@@ -141,7 +149,9 @@ function bankProblem(id) {
     html: b.prompt
       ? "<p>" + escapeHtml(b.prompt).replace(/\n\n/g, "</p><p>").replace(/\n/g, "<br>") + "</p>"
       : "<p class='muted'>No prompt saved yet. Use Edit to paste the question.</p>",
-    starter: "",
+    javaStarter: "",
+    pythonStarter: "",
+    cppStarter: "",
     hints: [],
     topics: [],
     companies: [],
