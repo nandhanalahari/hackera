@@ -36,15 +36,18 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  if (!hasLocalJava()) {
-    send(res, 200, { ok: false, fallback: "browser" });
-    return;
-  }
-
   try {
     const body = await readJson(req);
+    const lang = body.language || 'java';
+    
+    if (lang === 'java' && !hasLocalJava()) {
+      send(res, 200, { ok: false, fallback: "browser" });
+      return;
+    }
+
     const result = await runSolution({
       code: body.code,
+      language: lang,
       meta: body.meta,
       tests: body.tests
     });
