@@ -6,7 +6,7 @@ window.currentLang = localStorage.getItem("hackera-lang") || "java";
 /* router                                                              */
 /* ------------------------------------------------------------------ */
 
-const VIEWS = ["landing", "home", "list", "companies", "learn", "lesson", "bank", "jobs", "progress", "solve", "design", "design-topic", "design-drill", "practice"];
+const VIEWS = ["landing", "home", "list", "companies", "learn", "lesson", "bank", "jobs", "progress", "solve", "design", "design-topic", "design-drill", "practice", "relearn"];
 
 function isLoggedIn() {
   return typeof Auth !== "undefined" && Auth.isLoggedIn && Auth.isLoggedIn();
@@ -44,6 +44,8 @@ function parseRoute() {
       return { name: "jobs" };
     case "progress":
       return { name: "progress" };
+    case "relearn":
+      return { name: "relearn" };
     default:
       return { name: "home" };
   }
@@ -84,7 +86,8 @@ function navigate() {
         ((route.name === "design" || route.name === "design-topic" || route.name === "design-drill") && k === "design") ||
         (route.name === "bank" && k === "bank") ||
         (route.name === "jobs" && k === "jobs") ||
-        (route.name === "progress" && k === "progress")
+        (route.name === "progress" && k === "progress") ||
+        (route.name === "relearn" && k === "relearn")
     );
   });
 
@@ -101,6 +104,7 @@ function navigate() {
     case "bank": renderBank(); break;
     case "jobs": renderJobs(); break;
     case "progress": renderProgress(); break;
+    case "relearn": renderRelearn(); break;
     case "design": renderDesign(); break;
     case "design-topic": renderDesignTopic(); break;
     case "design-drill": renderDesignDrill(); break;
@@ -854,6 +858,7 @@ function renderSolve() {
   if (problem.url) meta.push(`<a class="badge link" href="${problem.url}" target="_blank" rel="noopener">LeetCode &#8599;</a>`);
   if (isSolved(problem.key)) meta.push(`<span class="badge solved">&#10003; Solved</span>`);
   $("q-meta").innerHTML = meta.join("");
+  renderRelearnOnProblem(problem);
 
   $("q-companies").innerHTML = companyChips(problem.companies, 8);
   $("q-prompt").innerHTML = problem.html;
@@ -1457,6 +1462,7 @@ function init() {
   initFilters();
   initPracticeFilters();
   initActivity();
+  initRelearn();
 
   $("q-prev").addEventListener("click", () => moveProblem(-1));
   $("q-next").addEventListener("click", () => moveProblem(1));

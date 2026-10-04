@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/eclipse.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=2">
 </head>
 <body>
 
@@ -26,6 +26,7 @@
     <a href="#/learn" data-nav="learn">Code</a>
     <a href="#/design" data-nav="design">Design</a>
     <a href="#/practice" data-nav="practice">Practice</a>
+    <a href="#/relearn" data-nav="relearn">Relearn</a>
     <a href="#/companies" data-nav="companies">Companies</a>
     <a href="#/jobs" data-nav="jobs">Jobs</a>
     <a href="#/progress" data-nav="progress">Progress</a>
@@ -454,6 +455,26 @@
       </div>
     </section>
 
+    <!-- -------------------------------------------------------- relearn -->
+    <section id="view-relearn" class="view hidden">
+      <div class="list-head">
+        <div>
+          <h1>Relearn</h1>
+          <p class="muted">Mark problems you solved on LeetCode. A few come back when it has been long enough, oldest and shakiest first.</p>
+        </div>
+        <div class="list-progress">
+          <span id="relearn-count" class="muted"></span>
+        </div>
+      </div>
+      <h2 class="section-heading">Due now</h2>
+      <div id="relearn-due"></div>
+      <h2 class="section-heading">Mark one you solved</h2>
+      <div class="filters">
+        <input id="relearn-search" type="search" placeholder="Search by name or number" spellcheck="false" autocomplete="off" aria-label="Search problems to mark solved">
+      </div>
+      <div id="relearn-results"></div>
+    </section>
+
     <!-- ------------------------------------------------------ progress -->
     <section id="view-progress" class="view hidden">
       <div class="list-head">
@@ -493,6 +514,7 @@
               <div id="tab-description">
                 <h2 id="q-title"></h2>
                 <div id="q-meta" class="meta"></div>
+                <div id="q-relearn" class="relearn-inline hidden"></div>
                 <div id="q-companies" class="companies"></div>
                 <div id="q-prompt" class="prose lc"></div>
               </div>
@@ -594,10 +616,11 @@
 <script src="js/design.js"></script>
 <script src="js/activity.js"></script>
 <script src="js/practice.js"></script>
+<script src="js/relearn.js?v=1"></script>
 <script src="js/coach.js"></script>
 <script src="js/auth.js"></script>
 <script src="tools/harness.js?v=4"></script>
 <script src="js/java-run.js?v=4"></script>
-<script src="js/app.js?v=4"></script>
+<script src="js/app.js?v=5"></script>
 </body>
 </html>
