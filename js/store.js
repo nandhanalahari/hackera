@@ -18,6 +18,7 @@ const KEYS = {
   prefs: "oa.prefs",
   learning: "oa.learning",
   designProgress: "oa.designProgress",
+  relearn: "oa.relearn",
   user: "oa.userKey"
 };
 
@@ -77,6 +78,7 @@ function reloadScopedState() {
   state.chat = loadScoped(KEYS.chat, []);
   state.learning = loadScoped(KEYS.learning, {});
   state.designProgress = loadScoped(KEYS.designProgress, {});
+  state.relearn = loadScoped(KEYS.relearn, {});
   state.activity = load(scopedKey("oa.activity"), state.activity || {});
   state.synced = false;
 }
@@ -121,6 +123,7 @@ const state = {
   }),
   learning: load(KEYS.learning, {}),
   designProgress: load(KEYS.designProgress, {}),
+  relearn: load(KEYS.relearn, {}),
   route: { name: "home" },
   busy: false,
   synced: false
@@ -136,7 +139,8 @@ const persist = {
   layout: () => save(KEYS.layout, state.layout),
   prefs: () => save(KEYS.prefs, state.prefs),
   learning: () => saveScoped(KEYS.learning, state.learning),
-  designProgress: () => saveScoped(KEYS.designProgress, state.designProgress)
+  designProgress: () => saveScoped(KEYS.designProgress, state.designProgress),
+  relearn: () => saveScoped(KEYS.relearn, state.relearn)
 };
 
 /* ------------------------------------------------------------------ */

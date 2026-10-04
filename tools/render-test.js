@@ -50,6 +50,7 @@ const bundle =
     "js/design.js",
     "js/activity.js",
     "js/practice.js",
+    "js/relearn.js",
     "js/coach.js",
     "js/app.js"
   ]
@@ -67,7 +68,8 @@ const bundle =
     Object.assign(window, {
       PROBLEMS, PATTERNS, PRACTICE_QUESTIONS, SD_TOPICS, state, isSolved, isAttempted,
       setChatOpen, getProblem, COMPANY_INDEX, statsFor, overallStats,
-      submitForReview, setEditorValue, db, progressFor
+      submitForReview, setEditorValue, db, progressFor,
+      markRelearn, relearnDue
     });`;
 
 let failures = 0;
@@ -126,7 +128,8 @@ const routes = [
   ["#/design", "view-design", "design-body"],
   ["#/design/requirements", "view-design-topic", "design-topic-scenarios"],
   ["#/bank", "view-bank", "bank-body"],
-  ["#/progress", "view-progress", "progress-summary"]
+  ["#/progress", "view-progress", "progress-summary"],
+  ["#/relearn", "view-relearn", "relearn-due"]
 ];
 
 for (const [hash, viewId, contentId] of routes) {
@@ -152,6 +155,44 @@ check(
   "problem check survives a rerender",
   $("learn-body").querySelector(`[data-problem="${firstBox.dataset.problem}"]`).checked
 );
+console.log("\nrelearn");
+window.state.relearn = {};
+visit("#/relearn");
+check("relearn starts empty", $("relearn-due").textContent.includes("Nothing marked yet"));
+const now = Date.now();
+const older = window.PROBLEMS.find((p) => p.slug !== "two-sum");
+window.markRelearn("two-sum", "just-now", now);
+check("just now is not due yet", !window.relearnDue(now).some((e) => e.slug === "two-sum"));
+window.markRelearn("two-sum", "months", now);
+check("earlier does not reset a fresh mark", window.state.relearn["two-sum"].lastResult === "just-now");
+window.markRelearn(older.slug, "months", now);
+window.markRelearn("two-sum", "remove", now);
+window.markRelearn("two-sum", "week", now);
+const due = window.relearnDue(now);
+check("backdated solves are due now", due.length === 2);
+check("older solve is first", due[0].slug === older.slug);
+window.markRelearn(older.slug, "got-it", now);
+check("still got it waits a week", window.state.relearn[older.slug].intervalDays === 7 && window.state.relearn[older.slug].dueAt > now);
+window.markRelearn(older.slug, "forgot", now);
+check("forgot comes back tomorrow", window.state.relearn[older.slug].intervalDays === 1 && window.state.relearn[older.slug].lapses === 1);
+visit("#/relearn");
+check("due card renders", $("relearn-due").textContent.includes("Two Sum"));
+$("relearn-search").value = "two sum";
+$("relearn-search").dispatchEvent(new window.Event("input"));
+check("search lists Two Sum", $("relearn-results").textContent.includes("Two Sum"));
+check(
+  "a marked problem does not offer a first mark",
+  !$("relearn-results").querySelector('[data-slug="two-sum"][data-relearn="just-now"]')
+);
+window.markRelearn("two-sum", "remove", now);
+$("relearn-search").dispatchEvent(new window.Event("input"));
+const justNow = $("relearn-results").querySelector('[data-slug="two-sum"][data-relearn="just-now"]');
+check("search can mark a solve", !!justNow);
+justNow.click();
+check("search mark sticks", window.state.relearn["two-sum"].lastResult === "just-now");
+visit("#/solve/two-sum");
+check("solve page offers relearn next to LeetCode", $("q-relearn").textContent.includes("due in"));
+window.state.relearn = {};
 
 console.log("\nlessons");
 for (const p of window.PATTERNS) {
