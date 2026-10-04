@@ -137,6 +137,22 @@ for (const [hash, viewId, contentId] of routes) {
   check(`${hash} renders content`, filled, `${contentId} is empty`);
 }
 
+console.log("\nproblem checklist");
+visit("#/learn");
+const problemBoxes = $("learn-body").querySelectorAll("[data-problem]");
+check("one finish box per problem", problemBoxes.length === window.PRACTICE_QUESTIONS.length, `got ${problemBoxes.length}`);
+check("no chapter-level boxes", $("learn-body").querySelectorAll("[data-chapter]").length === 0);
+const firstBox = problemBoxes[0];
+firstBox.checked = true;
+firstBox.dispatchEvent(new window.Event("change"));
+check("checking a problem sticks", window.state.prefs.problemDone[firstBox.dataset.problem] === true);
+check("problem count updates", $("learn-done").textContent.startsWith("1 /"));
+visit("#/learn");
+check(
+  "problem check survives a rerender",
+  $("learn-body").querySelector(`[data-problem="${firstBox.dataset.problem}"]`).checked
+);
+
 console.log("\nlessons");
 for (const p of window.PATTERNS) {
   visit(`#/learn/${encodeURIComponent(p.id)}`);

@@ -429,12 +429,13 @@ li.empty { padding: 18px; color: var(--text-dim); background: var(--panel); font
   background: var(--panel-3); border-radius: 6px;
   font-family: var(--mono); font-size: 12px; color: var(--text-dim);
 }
-.lhead { flex: 1; }
+.lhead { flex: 1; min-width: 0; }
 .lhead h3 { font-size: 16px; }
 .lhead h3 a:hover { color: var(--blue); }
 .lhead p { color: var(--text-dim); font-size: 13px; margin: 4px 0 0; }
 .lprog { display: flex; align-items: center; gap: 10px; width: 160px; flex-shrink: 0; }
 .lprog span { font-family: var(--mono); font-size: 12px; }
+#learn-done { padding-left: 12px; border-left: 1px solid var(--border); }
 
 .lesson-link { display: inline-block; margin: 12px 0 6px 40px; color: var(--violet); font-size: 13px; }
 .lesson-link:hover { text-decoration: underline; }
@@ -445,10 +446,17 @@ li.empty { padding: 18px; color: var(--text-dim); background: var(--panel); font
   color: var(--text-faint); font-weight: 600; margin-bottom: 4px;
 }
 .lrow {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 8px;
   padding: 7px 10px; border-radius: 6px; background: var(--panel-2); margin-bottom: 4px;
 }
 .lrow:hover { background: var(--panel-3); }
+.lrow-main { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.problem-check { display: inline-flex; align-items: center; flex-shrink: 0; cursor: pointer; }
+.problem-check input {
+  width: 16px; height: 16px; margin: 0; padding: 0;
+  accent-color: var(--green); cursor: pointer;
+}
+.lrow.problem-done .rname { color: var(--green); }
 
 /* ------------------------------------------------------------------ */
 /* lesson + prose                                                      */
@@ -2576,6 +2584,10 @@ body.guest #page {
   .list-head { flex-direction: column; gap: 12px; }
   .list-progress { align-items: flex-start !important; width: 100%; }
   .bar.wide { width: 100%; max-width: 100%; }
+  #view-learn .list-progress { flex-wrap: wrap; row-gap: 8px; }
+  #view-learn .bar.wide { flex: 1 0 100%; }
+  .lpattern header { flex-wrap: wrap; }
+  .lpattern .lprog { width: 100%; padding-left: 40px; }
 
   .filters input,
   .filters select,
