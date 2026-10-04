@@ -407,18 +407,18 @@ function renderCompanies() {
 /* learning path                                                       */
 /* ------------------------------------------------------------------ */
 
-function chapterDoneMap() {
-  if (!state.prefs.chapterDone) state.prefs.chapterDone = {};
-  return state.prefs.chapterDone;
+function problemDoneMap() {
+  if (!state.prefs.problemDone) state.prefs.problemDone = {};
+  return state.prefs.problemDone;
 }
 
 function renderLearn() {
   const s = learnStats();
   $("learn-bar").style.width = pct(s.solved, s.total) + "%";
   $("learn-count").textContent = `${s.solved} / ${s.total} solved`;
-  const doneMap = chapterDoneMap();
-  const marked = PATTERNS.filter((p) => doneMap[p.id]).length;
-  $("learn-done").textContent = `${marked} / ${PATTERNS.length} done`;
+  const doneMap = problemDoneMap();
+  const marked = PRACTICE_QUESTIONS.filter((q) => doneMap[q.id]).length;
+  $("learn-done").textContent = `${marked} / ${PRACTICE_QUESTIONS.length} checked`;
 
   $("learn-body").innerHTML = PATTERNS.map((p, i) => {
     const qs = PRACTICE_QUESTIONS.filter((q) => q.patternId === p.id);
@@ -430,30 +430,30 @@ function renderLearn() {
         return `<div class="stage">
           <span class="stage-label">${stage === "practice" ? "Warm-up" : "Interview"}</span>
           ${items
-            .map(
-              (q) => `<a class="lrow" href="#/solve/${encodeURIComponent("learn:" + q.id)}">
-                ${statusIcon("learn:" + q.id)}
-                <span class="rname">${escapeHtml(q.title)}</span>
-                ${q.source ? `<span class="chip">${escapeHtml(q.source)}</span>` : ""}
-                ${diffBadge(q.difficulty)}
-              </a>`
-            )
+            .map((q) => {
+              const checked = !!doneMap[q.id];
+              return `<div class="lrow${checked ? " problem-done" : ""}">
+                <label class="problem-check" title="Mark this problem finished">
+                  <input type="checkbox" data-problem="${escapeHtml(q.id)}"${checked ? " checked" : ""} aria-label="Mark ${escapeHtml(q.title)} finished">
+                </label>
+                <a class="lrow-main" href="#/solve/${encodeURIComponent("learn:" + q.id)}">
+                  ${statusIcon("learn:" + q.id)}
+                  <span class="rname">${escapeHtml(q.title)}</span>
+                  ${q.source ? `<span class="chip">${escapeHtml(q.source)}</span>` : ""}
+                  ${diffBadge(q.difficulty)}
+                </a>
+              </div>`;
+            })
             .join("")}
         </div>`;
       })
       .join("");
 
-    const checked = !!doneMap[p.id];
-    return `<section class="lpattern${done === qs.length ? " complete" : ""}${checked ? " chapter-done" : ""}">
+    return `<section class="lpattern${done === qs.length ? " complete" : ""}">
       <header>
         <span class="rank">${i + 1}</span>
         <div class="lhead">
-          <h3>
-            <label class="chapter-check" title="Mark this chapter finished">
-              <input type="checkbox" data-chapter="${escapeHtml(p.id)}"${checked ? " checked" : ""} aria-label="Mark ${escapeHtml(p.name)} finished">
-            </label>
-            <a href="#/learn/${encodeURIComponent(p.id)}">${escapeHtml(p.name)}</a>
-          </h3>
+          <h3><a href="#/learn/${encodeURIComponent(p.id)}">${escapeHtml(p.name)}</a></h3>
           <p>${escapeHtml(p.summary)}</p>
         </div>
         <div class="lprog">
@@ -466,16 +466,17 @@ function renderLearn() {
     </section>`;
   }).join("");
 
-  $("learn-body").querySelectorAll("[data-chapter]").forEach((input) => {
+  $("learn-body").querySelectorAll("[data-problem]").forEach((input) => {
+    input.addEventListener("click", (e) => e.stopPropagation());
     input.addEventListener("change", () => {
-      const map = chapterDoneMap();
-      if (input.checked) map[input.dataset.chapter] = true;
-      else delete map[input.dataset.chapter];
+      const map = problemDoneMap();
+      if (input.checked) map[input.dataset.problem] = true;
+      else delete map[input.dataset.problem];
       persist.prefs();
-      const section = input.closest(".lpattern");
-      if (section) section.classList.toggle("chapter-done", input.checked);
-      const count = PATTERNS.filter((p) => map[p.id]).length;
-      $("learn-done").textContent = `${count} / ${PATTERNS.length} done`;
+      const row = input.closest(".lrow");
+      if (row) row.classList.toggle("problem-done", input.checked);
+      const count = PRACTICE_QUESTIONS.filter((q) => map[q.id]).length;
+      $("learn-done").textContent = `${count} / ${PRACTICE_QUESTIONS.length} checked`;
     });
   });
 }

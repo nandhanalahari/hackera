@@ -137,19 +137,20 @@ for (const [hash, viewId, contentId] of routes) {
   check(`${hash} renders content`, filled, `${contentId} is empty`);
 }
 
-console.log("\nchapter checklist");
+console.log("\nproblem checklist");
 visit("#/learn");
-const chapterBoxes = $("learn-body").querySelectorAll("[data-chapter]");
-check("one finish box per chapter", chapterBoxes.length === window.PATTERNS.length, `got ${chapterBoxes.length}`);
-const firstBox = chapterBoxes[0];
+const problemBoxes = $("learn-body").querySelectorAll("[data-problem]");
+check("one finish box per problem", problemBoxes.length === window.PRACTICE_QUESTIONS.length, `got ${problemBoxes.length}`);
+check("no chapter-level boxes", $("learn-body").querySelectorAll("[data-chapter]").length === 0);
+const firstBox = problemBoxes[0];
 firstBox.checked = true;
 firstBox.dispatchEvent(new window.Event("change"));
-check("checking a chapter sticks", window.state.prefs.chapterDone[firstBox.dataset.chapter] === true);
-check("chapter count updates", $("learn-done").textContent.startsWith("1 /"));
+check("checking a problem sticks", window.state.prefs.problemDone[firstBox.dataset.problem] === true);
+check("problem count updates", $("learn-done").textContent.startsWith("1 /"));
 visit("#/learn");
 check(
-  "chapter check survives a rerender",
-  $("learn-body").querySelector(`[data-chapter="${firstBox.dataset.chapter}"]`).checked
+  "problem check survives a rerender",
+  $("learn-body").querySelector(`[data-problem="${firstBox.dataset.problem}"]`).checked
 );
 
 console.log("\nlessons");
