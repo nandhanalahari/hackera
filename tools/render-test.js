@@ -137,6 +137,21 @@ for (const [hash, viewId, contentId] of routes) {
   check(`${hash} renders content`, filled, `${contentId} is empty`);
 }
 
+console.log("\nchapter checklist");
+visit("#/learn");
+const chapterBoxes = $("learn-body").querySelectorAll("[data-chapter]");
+check("one finish box per chapter", chapterBoxes.length === window.PATTERNS.length, `got ${chapterBoxes.length}`);
+const firstBox = chapterBoxes[0];
+firstBox.checked = true;
+firstBox.dispatchEvent(new window.Event("change"));
+check("checking a chapter sticks", window.state.prefs.chapterDone[firstBox.dataset.chapter] === true);
+check("chapter count updates", $("learn-done").textContent.startsWith("1 /"));
+visit("#/learn");
+check(
+  "chapter check survives a rerender",
+  $("learn-body").querySelector(`[data-chapter="${firstBox.dataset.chapter}"]`).checked
+);
+
 console.log("\nlessons");
 for (const p of window.PATTERNS) {
   visit(`#/learn/${encodeURIComponent(p.id)}`);
