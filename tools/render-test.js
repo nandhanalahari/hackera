@@ -69,7 +69,7 @@ const bundle =
       PROBLEMS, PATTERNS, PRACTICE_QUESTIONS, SD_TOPICS, state, isSolved, isAttempted,
       setChatOpen, getProblem, COMPANY_INDEX, statsFor, overallStats,
       submitForReview, setEditorValue, db, progressFor,
-      markRelearn, relearnDue
+      markRelearn, relearnQueue, relearnStats
     });`;
 
 let failures = 0;
@@ -159,24 +159,45 @@ console.log("\nrelearn");
 window.state.relearn = {};
 visit("#/relearn");
 check("relearn starts empty", $("relearn-due").textContent.includes("Nothing marked yet"));
-const now = Date.now();
-const older = window.PROBLEMS.find((p) => p.slug !== "two-sum");
-window.markRelearn("two-sum", "just-now", now);
-check("just now is not due yet", !window.relearnDue(now).some((e) => e.slug === "two-sum"));
-window.markRelearn("two-sum", "months", now);
+const t0 = Date.now();
+const DAY = 24 * 60 * 60 * 1000;
+window.markRelearn("two-sum", "just-now", t0);
+check("a fresh mark is in the queue right away", window.relearnQueue().length === 1);
+window.markRelearn("two-sum", "months", t0);
 check("earlier does not reset a fresh mark", window.state.relearn["two-sum"].lastResult === "just-now");
-window.markRelearn(older.slug, "months", now);
-window.markRelearn("two-sum", "remove", now);
-window.markRelearn("two-sum", "week", now);
-const due = window.relearnDue(now);
-check("backdated solves are due now", due.length === 2);
-check("older solve is first", due[0].slug === older.slug);
-window.markRelearn(older.slug, "got-it", now);
-check("still got it waits a week", window.state.relearn[older.slug].intervalDays === 7 && window.state.relearn[older.slug].dueAt > now);
-window.markRelearn(older.slug, "forgot", now);
-check("forgot comes back tomorrow", window.state.relearn[older.slug].intervalDays === 1 && window.state.relearn[older.slug].lapses === 1);
+window.markRelearn("add-two-numbers", "month", t0);
+window.markRelearn("container-with-most-water", "week", t0);
+let q = window.relearnQueue().map((e) => e.slug);
+check("least recently visited is first", q.join() === "add-two-numbers,container-with-most-water,two-sum", q.join());
+window.markRelearn("add-two-numbers", "flawless", t0 + 1000);
+q = window.relearnQueue().map((e) => e.slug);
+check("flawless goes to the back", q[q.length - 1] === "add-two-numbers", q.join());
+window.markRelearn("container-with-most-water", "practice", t0 + 2000);
+q = window.relearnQueue().map((e) => e.slug);
+check("needs more practice goes back into the queue", q.includes("container-with-most-water") && q.length === 3);
+check("needs more practice is counted", window.state.relearn["container-with-most-water"].lapses === 1);
+["longest-substring-without-repeating-characters", "3sum", "group-anagrams", "valid-anagram"].forEach((extra, i) => {
+  window.markRelearn(extra, "months", t0 - (200 - i * 10) * DAY + 90 * DAY);
+});
+window.markRelearn("two-sum", "practice", t0 + 3000);
+const after = window.relearnQueue().map((e) => e.slug);
+check("needs more practice lands a few places down, not at the front", after.indexOf("two-sum") === 3, after.join());
+check("needs more practice is not the very back", after.indexOf("two-sum") < after.length - 1, after.join());
+check("reviews never reset the original solve date", window.state.relearn["two-sum"].solvedAt === t0);
+check("last visited shows the real review time", window.state.relearn["two-sum"].lastSeenAt === t0 + 3000);
+const stats = window.relearnStats();
+check("stats count marked problems", stats.markedTotal === Object.keys(window.state.relearn).length);
+check("stats split by difficulty", stats.marked.Easy + stats.marked.Medium + stats.marked.Hard === stats.markedTotal);
+check("stats compare against the catalog", stats.total === window.PROBLEMS.length);
 visit("#/relearn");
-check("due card renders", $("relearn-due").textContent.includes("Two Sum"));
+check("stat cards render", $("relearn-stats").querySelectorAll("[data-relearn-filter]").length === 4);
+check("the top of the queue is highlighted", $("relearn-due").querySelector(".relearn-next .relearn-title") !== null);
+check("queue shows every marked problem", $("relearn-due").querySelectorAll(".relearn-card").length === stats.markedTotal);
+$("relearn-stats").querySelector('[data-relearn-filter="Easy"]').click();
+const easyOnly = [...$("relearn-marked").querySelectorAll(".badge")].map((b) => b.textContent);
+check("clicking Easy filters the marked list", easyOnly.length > 0 && easyOnly.every((d) => d === "Easy"), easyOnly.join());
+$("relearn-stats").querySelector('[data-relearn-filter="Easy"]').click();
+check("clicking it again shows everything", $("relearn-marked").querySelectorAll(".relearn-mrow").length === stats.markedTotal);
 $("relearn-search").value = "two sum";
 $("relearn-search").dispatchEvent(new window.Event("input"));
 check("search lists Two Sum", $("relearn-results").textContent.includes("Two Sum"));
@@ -184,14 +205,14 @@ check(
   "a marked problem does not offer a first mark",
   !$("relearn-results").querySelector('[data-slug="two-sum"][data-relearn="just-now"]')
 );
-window.markRelearn("two-sum", "remove", now);
+window.markRelearn("two-sum", "remove", t0);
 $("relearn-search").dispatchEvent(new window.Event("input"));
 const justNow = $("relearn-results").querySelector('[data-slug="two-sum"][data-relearn="just-now"]');
 check("search can mark a solve", !!justNow);
 justNow.click();
 check("search mark sticks", window.state.relearn["two-sum"].lastResult === "just-now");
 visit("#/solve/two-sum");
-check("solve page offers relearn next to LeetCode", $("q-relearn").textContent.includes("due in"));
+check("solve page shows queue position", $("q-relearn").textContent.includes("In your queue"));
 window.state.relearn = {};
 
 console.log("\nlessons");

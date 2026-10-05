@@ -1,14 +1,15 @@
 "use strict";
 
-/* Relearn: problems solved on LeetCode, reviewed here by when they were marked.
+/* Relearn: a queue of problems solved on LeetCode, least recently visited first.
    See docs/relearn-requirements.md. */
 
-const RELEARN_DAILY = 3;
-const RELEARN_LADDER = [3, 7, 21, 45];
+const RELEARN_PRACTICE_GAP = 3;
 const RELEARN_DAY = 24 * 60 * 60 * 1000;
 const RELEARN_EARLIER = { week: 7, month: 30, months: 90 };
+const RELEARN_LEVELS = ["Easy", "Medium", "Hard"];
 
 let relearnQuery = "";
+let relearnFilter = "all";
 
 function relearnMap() {
   if (!state.relearn || typeof state.relearn !== "object" || Array.isArray(state.relearn)) {
@@ -27,11 +28,43 @@ function relearnSlug(problem) {
   return problem.url && BY_SLUG.has(problem.key) ? problem.key : null;
 }
 
-function nextRelearnInterval(current) {
-  for (const step of RELEARN_LADDER) {
-    if (current < step) return step;
+/* lastSeenAt is when you actually last did the problem (shown to you).
+   queueAt only decides the order. Marks made before the queue existed only have solvedAt. */
+function relearnLastSeen(record) {
+  return record.lastSeenAt != null ? record.lastSeenAt : record.solvedAt;
+}
+
+function relearnQueueAt(record) {
+  return record.queueAt != null ? record.queueAt : relearnLastSeen(record);
+}
+
+function relearnEntries() {
+  const map = relearnMap();
+  const out = [];
+  for (const slug of Object.keys(map)) {
+    const problem = BY_SLUG.get(slug);
+    if (!problem) continue;
+    out.push({ slug, problem, ...map[slug], lastSeenAt: relearnLastSeen(map[slug]), queueAt: relearnQueueAt(map[slug]) });
   }
-  return RELEARN_LADDER[RELEARN_LADDER.length - 1];
+  return out;
+}
+
+/* Least recently visited first: the problem you are most likely to have forgotten. */
+function relearnQueue() {
+  return relearnEntries().sort((a, b) => a.queueAt - b.queueAt || a.problem.id - b.problem.id);
+}
+
+function relearnStats() {
+  const totals = { Easy: 0, Medium: 0, Hard: 0 };
+  for (const p of PROBLEMS) if (totals[p.difficulty] != null) totals[p.difficulty]++;
+  const marked = { Easy: 0, Medium: 0, Hard: 0 };
+  for (const e of relearnEntries()) if (marked[e.problem.difficulty] != null) marked[e.problem.difficulty]++;
+  return {
+    marked,
+    totals,
+    markedTotal: marked.Easy + marked.Medium + marked.Hard,
+    total: totals.Easy + totals.Medium + totals.Hard
+  };
 }
 
 function markRelearn(slug, action, now = Date.now()) {
@@ -50,11 +83,10 @@ function markRelearn(slug, action, now = Date.now()) {
     if (record) return false;
     const daysAgo = action === "just-now" ? 0 : RELEARN_EARLIER[action];
     const solvedAt = now - daysAgo * RELEARN_DAY;
-    const intervalDays = RELEARN_LADDER[0];
     map[slug] = {
       solvedAt,
-      dueAt: solvedAt + intervalDays * RELEARN_DAY,
-      intervalDays,
+      lastSeenAt: solvedAt,
+      queueAt: solvedAt,
       lapses: 0,
       reviews: 0,
       lastResult: action === "just-now" ? "just-now" : "earlier"
@@ -65,50 +97,34 @@ function markRelearn(slug, action, now = Date.now()) {
 
   if (!record) return false;
 
-  if (action === "got-it") {
-    const intervalDays = nextRelearnInterval(record.intervalDays || 0);
-    record.intervalDays = intervalDays;
-    record.dueAt = now + intervalDays * RELEARN_DAY;
+  if (action === "flawless") {
+    /* Went perfectly: to the back of the queue. */
+    record.lastSeenAt = now;
+    record.queueAt = now;
     record.reviews = (record.reviews || 0) + 1;
-    record.lastResult = "got-it";
+    record.lastResult = "flawless";
     persist.relearn();
     return true;
   }
 
-  if (action === "forgot") {
-    record.intervalDays = 1;
-    record.dueAt = now + RELEARN_DAY;
+  if (action === "practice") {
+    /* Needs more work: back in the queue, but only a few places down. */
+    const others = relearnQueue().filter((e) => e.slug !== slug);
+    let queueAt = now;
+    if (others.length) {
+      const anchor = others[Math.min(RELEARN_PRACTICE_GAP, others.length) - 1];
+      queueAt = Math.min(now, anchor.queueAt + 1);
+    }
+    record.lastSeenAt = now;
+    record.queueAt = queueAt;
     record.lapses = (record.lapses || 0) + 1;
     record.reviews = (record.reviews || 0) + 1;
-    record.lastResult = "forgot";
+    record.lastResult = "practice";
     persist.relearn();
     return true;
   }
 
   return false;
-}
-
-function relearnEntries() {
-  const map = relearnMap();
-  const out = [];
-  for (const slug of Object.keys(map)) {
-    const problem = BY_SLUG.get(slug);
-    if (!problem) continue;
-    out.push({ slug, problem, ...map[slug] });
-  }
-  return out;
-}
-
-function relearnDue(now = Date.now()) {
-  return relearnEntries()
-    .filter((entry) => entry.dueAt <= now)
-    .sort((a, b) => (b.lapses || 0) - (a.lapses || 0) || a.solvedAt - b.solvedAt || a.dueAt - b.dueAt);
-}
-
-function relearnNext(now = Date.now()) {
-  return relearnEntries()
-    .filter((entry) => entry.dueAt > now)
-    .sort((a, b) => a.dueAt - b.dueAt)[0] || null;
 }
 
 function searchRelearnProblems(query) {
@@ -141,21 +157,19 @@ function formatAgo(ts, now) {
   return months === 1 ? "1 month ago" : `${months} months ago`;
 }
 
-function formatDue(ts, now) {
-  const days = Math.ceil((ts - now) / RELEARN_DAY);
-  if (days <= 0) return "due now";
-  if (days === 1) return "due tomorrow";
-  return `due in ${days} days`;
+function practiceText(lapses) {
+  if (!lapses) return "";
+  return lapses === 1 ? "needed more practice once" : `needed more practice ${lapses} times`;
 }
 
-function relearnStatusText(record, now) {
-  const bits = [`Marked ${formatAgo(record.solvedAt, now)}`, formatDue(record.dueAt, now)];
-  if (record.lapses === 1) bits.push("forgotten once");
-  else if (record.lapses > 1) bits.push(`forgotten ${record.lapses} times`);
-  return bits.join(" · ");
+function relearnReviewButtons(slug) {
+  const safe = escapeHtml(slug);
+  return `<button type="button" class="btn-primary small" data-relearn="flawless" data-slug="${safe}">Flawless</button>
+    <button type="button" class="btn-ghost small" data-relearn="practice" data-slug="${safe}">Needs more practice</button>
+    <button type="button" class="btn-ghost small" data-relearn="remove" data-slug="${safe}">Remove</button>`;
 }
 
-function relearnMarkHtml(slug, record, now) {
+function relearnMarkHtml(slug, record, queue, now) {
   const safe = escapeHtml(slug);
   if (!record) {
     return `<span class="relearn-label">Solved on LeetCode?</span>
@@ -165,13 +179,11 @@ function relearnMarkHtml(slug, record, now) {
       <button type="button" class="btn-ghost small" data-relearn="month" data-slug="${safe}">A month ago</button>
       <button type="button" class="btn-ghost small" data-relearn="months" data-slug="${safe}">A few months ago</button>`;
   }
-  const review = record.dueAt <= now
-    ? `<button type="button" class="btn-primary small" data-relearn="got-it" data-slug="${safe}">Still got it</button>
-       <button type="button" class="btn-ghost small" data-relearn="forgot" data-slug="${safe}">Forgot it</button>`
-    : "";
-  return `<span class="relearn-status">${escapeHtml(relearnStatusText(record, now))}</span>
-    ${review}
-    <button type="button" class="btn-ghost small" data-relearn="remove" data-slug="${safe}">Remove</button>`;
+  const pos = queue.findIndex((e) => e.slug === slug) + 1;
+  const bits = [`In your queue: #${pos} of ${queue.length}`, `last visited ${formatAgo(relearnLastSeen(record), now)}`];
+  const practice = practiceText(record.lapses);
+  if (practice) bits.push(practice);
+  return `<span class="relearn-status">${escapeHtml(bits.join(" · "))}</span>${relearnReviewButtons(slug)}`;
 }
 
 function renderRelearnOnProblem(problem) {
@@ -184,13 +196,53 @@ function renderRelearnOnProblem(problem) {
     return;
   }
   box.classList.remove("hidden");
-  box.innerHTML = relearnMarkHtml(slug, relearnMap()[slug], Date.now());
+  box.innerHTML = relearnMarkHtml(slug, relearnMap()[slug], relearnQueue(), Date.now());
+}
+
+function renderRelearnStats() {
+  const box = $("relearn-stats");
+  if (!box) return;
+  const s = relearnStats();
+  const card = (key, label, mark, total, cls) => `<button type="button" class="relearn-stat ${cls}${relearnFilter === key ? " active" : ""}" data-relearn-filter="${key}" aria-pressed="${relearnFilter === key}">
+      <span class="relearn-stat-label">${label}</span>
+      <strong>${mark}</strong>
+      <span class="relearn-stat-of">of ${total}</span>
+      <span class="bar"><i style="width:${pct(mark, total)}%"></i></span>
+    </button>`;
+  box.innerHTML =
+    card("all", "Total", s.markedTotal, s.total, "total") +
+    RELEARN_LEVELS.map((level) => card(level, level, s.marked[level], s.totals[level], level.toLowerCase())).join("");
+}
+
+function renderRelearnMarked() {
+  const box = $("relearn-marked");
+  const title = $("relearn-marked-title");
+  if (!box) return;
+  const now = Date.now();
+  const entries = relearnEntries()
+    .filter((e) => relearnFilter === "all" || e.problem.difficulty === relearnFilter)
+    .sort((a, b) => a.problem.id - b.problem.id);
+  if (title) {
+    title.textContent = `Marked problems${relearnFilter === "all" ? "" : ` · ${relearnFilter}`} (${entries.length})`;
+  }
+  if (!entries.length) {
+    box.innerHTML = `<p class="empty-state">${relearnFilter === "all" ? "Nothing marked yet." : `No ${relearnFilter} problems marked yet.`}</p>`;
+    return;
+  }
+  box.innerHTML = entries.map((e) => `<div class="relearn-mrow">
+      <span class="pr-num">${e.problem.id}</span>
+      <a class="relearn-mtitle" href="#/solve/${encodeURIComponent(e.slug)}">${escapeHtml(e.problem.title)}</a>
+      ${diffBadge(e.problem.difficulty)}
+      <span class="muted relearn-mseen">${formatAgo(e.lastSeenAt, now)}</span>
+      <button type="button" class="btn-ghost small" data-relearn="remove" data-slug="${escapeHtml(e.slug)}">Remove</button>
+    </div>`).join("");
 }
 
 function renderRelearnResults() {
   const box = $("relearn-results");
   if (!box) return;
   const now = Date.now();
+  const queue = relearnQueue();
   const { shown, total } = searchRelearnProblems(relearnQuery);
   if (!relearnQuery.trim()) {
     box.innerHTML = `<p class="empty-state">Search a problem you just solved on LeetCode.</p>`;
@@ -208,60 +260,56 @@ function renderRelearnResults() {
         ${diffBadge(problem.difficulty)}
         <a class="badge link" href="https://leetcode.com/problems/${encodeURIComponent(problem.slug)}/" target="_blank" rel="noopener">LeetCode &#8599;</a>
       </div>
-      <div class="relearn-actions">${relearnMarkHtml(problem.slug, relearnMap()[problem.slug], now)}</div>
+      <div class="relearn-actions">${relearnMarkHtml(problem.slug, relearnMap()[problem.slug], queue, now)}</div>
     </div>`).join("") + more;
 }
 
 function renderRelearn() {
   const now = Date.now();
-  const due = relearnDue(now);
-  const shown = due.slice(0, RELEARN_DAILY);
-  const waiting = due.length - shown.length;
-  const marked = relearnEntries().length;
+  const queue = relearnQueue();
   const count = $("relearn-count");
-  if (count) {
-    count.textContent = marked ? `${due.length} due · ${marked} marked` : "Nothing marked yet";
-  }
+  if (count) count.textContent = queue.length ? `${queue.length} in queue` : "Nothing marked yet";
 
-  const dueBox = $("relearn-due");
-  if (dueBox) {
-    if (!marked) {
-      dueBox.innerHTML = `<p class="empty-state">Nothing marked yet. Search a problem below after you solve it on LeetCode.</p>`;
-    } else if (!shown.length) {
-      const next = relearnNext(now);
-      dueBox.innerHTML = `<p class="empty-state">${next
-        ? `Nothing due right now. Next up is ${escapeHtml(next.problem.title)}, ${formatDue(next.dueAt, now)}.`
-        : "Nothing due right now."}</p>`;
+  renderRelearnStats();
+
+  const queueBox = $("relearn-due");
+  if (queueBox) {
+    if (!queue.length) {
+      queueBox.innerHTML = `<p class="empty-state">Nothing marked yet. Search a problem below after you solve it on LeetCode.</p>`;
     } else {
-      const extra = waiting > 0
-        ? `<p class="muted relearn-more">${waiting} more due after these.</p>`
-        : "";
-      dueBox.innerHTML = shown.map((entry) => {
+      queueBox.innerHTML = queue.map((entry, i) => {
         const problem = entry.problem;
-        const lapses = entry.lapses
-          ? ` · ${entry.lapses === 1 ? "forgotten once" : `forgotten ${entry.lapses} times`}`
-          : "";
-        return `<article class="relearn-card">
+        const practice = practiceText(entry.lapses);
+        return `<article class="relearn-card${i === 0 ? " relearn-next" : ""}">
+          <span class="relearn-pos">${i + 1}</span>
           <div class="relearn-card-main">
             <a class="relearn-title" href="#/solve/${encodeURIComponent(problem.slug)}">${problem.id}. ${escapeHtml(problem.title)}</a>
             ${diffBadge(problem.difficulty)}
-            <p class="muted">Solved ${formatAgo(entry.solvedAt, now)}${lapses}</p>
+            <p class="muted">Last visited ${formatAgo(entry.lastSeenAt, now)}${practice ? ` · ${practice}` : ""}</p>
           </div>
           <div class="relearn-actions">
             <a class="btn-ghost small" href="https://leetcode.com/problems/${encodeURIComponent(problem.slug)}/" target="_blank" rel="noopener">Open on LeetCode</a>
-            <button type="button" class="btn-primary small" data-relearn="got-it" data-slug="${escapeHtml(problem.slug)}">Still got it</button>
-            <button type="button" class="btn-ghost small" data-relearn="forgot" data-slug="${escapeHtml(problem.slug)}">Forgot it</button>
-            <button type="button" class="btn-ghost small" data-relearn="remove" data-slug="${escapeHtml(problem.slug)}">Remove</button>
+            ${relearnReviewButtons(problem.slug)}
           </div>
         </article>`;
-      }).join("") + extra;
+      }).join("");
     }
   }
 
+  renderRelearnMarked();
   renderRelearnResults();
 }
 
 function onRelearnClick(event) {
+  const filter = event.target.closest("[data-relearn-filter]");
+  if (filter) {
+    event.preventDefault();
+    const next = filter.dataset.relearnFilter;
+    relearnFilter = relearnFilter === next ? "all" : next;
+    renderRelearnStats();
+    renderRelearnMarked();
+    return;
+  }
   const button = event.target.closest("[data-relearn]");
   if (!button) return;
   event.preventDefault();
